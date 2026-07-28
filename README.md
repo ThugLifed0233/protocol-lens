@@ -126,7 +126,7 @@ period templates in [`examples/`](examples/).
 
 ![Synthetic Supplement Lens preview](docs/assets/supplement-lens.png)
 
-The built-in public research index currently covers 14 supplement/nootropic profiles. A profile can
+The built-in public research index currently covers 26 supplement/nootropic profiles. A profile can
 be published before a personal result, but an Apple-linked result requires confirmed dates, an
 explicit experiment review, and separate approval of both the profile and period.
 
