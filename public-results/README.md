@@ -19,3 +19,19 @@ The local app can export a publishable JSON or CSV snapshot. Before committing o
 5. commit only after explicit approval.
 
 `example.json` uses synthetic values and documents the output shape.
+
+## Published artifacts
+
+- [`supplements.md`](supplements.md) — readable supplement/nootropic research and result status
+- [`supplements.json`](supplements.json) — machine-readable public knowledge catalog
+- [`workouts.md`](workouts.md) — readable aggregate workout history
+- [`workouts.json`](workouts.json) — machine-readable aggregate workout result
+
+The supplement catalog can be regenerated with:
+
+```bash
+protocol-lens catalog
+```
+
+Personal outcome rows remain empty until their exact periods are confirmed, reviewed, and
+explicitly approved.

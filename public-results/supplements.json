@@ -1,0 +1,651 @@
+[
+  {
+    "aliases": [
+      "creatine monohydrate"
+    ],
+    "category": "performance",
+    "display_name": "Creatine",
+    "evidence_caveat": "Responses vary, endurance benefits are limited, and short-term body-mass changes can reflect water rather than tissue change.",
+    "expected_role": "Support repeated high-intensity work and adaptation to resistance training.",
+    "go_to_reads": [
+      {
+        "publisher": "NIH Office of Dietary Supplements",
+        "title": "Dietary Supplements for Exercise and Athletic Performance",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-HealthProfessional/"
+      }
+    ],
+    "history_status": "confirmed_profile",
+    "key": "creatine",
+    "metric_map": [
+      {
+        "fit": "strong",
+        "interpretation": "Useful training-exposure context, but not a direct strength measure.",
+        "key": "workout_minutes",
+        "source": "apple_health"
+      },
+      {
+        "fit": "moderate",
+        "interpretation": "Describes recorded activity around a period; wearable energy is an estimate.",
+        "key": "active_energy",
+        "source": "apple_health"
+      },
+      {
+        "fit": "moderate",
+        "interpretation": "Can reveal concurrent mass change without identifying its composition.",
+        "key": "body_mass",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Loads, repetitions, and effort are needed to assess the primary performance role.",
+        "key": "strength_performance",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "whey",
+      "protein powder",
+      "yeast protein"
+    ],
+    "category": "nutrition",
+    "display_name": "Whey and protein supplements",
+    "evidence_caveat": "Benefit depends on total dietary intake, training, and whether the supplement corrects a protein shortfall; Apple Health does not measure protein intake.",
+    "expected_role": "Provide a convenient way to meet protein needs that support muscle repair and adaptation.",
+    "go_to_reads": [
+      {
+        "publisher": "NIH Office of Dietary Supplements",
+        "title": "Dietary Supplements for Exercise and Athletic Performance",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-HealthProfessional/"
+      }
+    ],
+    "history_status": "confirmed_profile",
+    "key": "whey_protein",
+    "metric_map": [
+      {
+        "fit": "moderate",
+        "interpretation": "Provides training context for interpreting a protein-support period.",
+        "key": "workout_minutes",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Body mass alone cannot separate muscle, fat, water, or food mass.",
+        "key": "body_mass",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Daily protein intake is the key exposure and must come from food logging.",
+        "key": "protein",
+        "source": "manual"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Training records are more informative than passive activity totals.",
+        "key": "strength_performance",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "LTNN",
+      "theanine"
+    ],
+    "category": "nootropic",
+    "display_name": "L-theanine",
+    "evidence_caveat": "Trials are generally small and heterogeneous; subjective calm and attention are not captured by Apple Health, and combined use with caffeine is a distinct exposure.",
+    "expected_role": "Explore relaxation, perceived stress, sleep quality, and attention, either alone or alongside caffeine.",
+    "go_to_reads": [
+      {
+        "publisher": "PubMed",
+        "title": "Effects of L-Theanine on Stress-Related Symptoms and Cognitive Functions",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/31623400/"
+      },
+      {
+        "publisher": "PubMed",
+        "title": "L-theanine, cognition, sleep, and mood: systematic review and meta-analysis",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/40314930/"
+      }
+    ],
+    "history_status": "period_confirmation_needed",
+    "key": "l_theanine",
+    "metric_map": [
+      {
+        "fit": "moderate",
+        "interpretation": "A useful objective context signal, but duration does not equal sleep quality.",
+        "key": "sleep_hours",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "May add autonomic context but is not a validated marker of a calming effect.",
+        "key": "resting_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Exploratory context only because consumer HRV is noisy and highly confounded.",
+        "key": "hrv_sdnn",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Attention is a central proposed outcome and needs a repeatable task or rating.",
+        "key": "focus",
+        "source": "manual"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Perceived physical tension requires a consistent self-report measure.",
+        "key": "tension",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "magnesium glycinate"
+    ],
+    "category": "recovery",
+    "display_name": "Magnesium",
+    "evidence_caveat": "Sleep or recovery effects are not assured when magnesium status is adequate, and product labels differ in elemental magnesium.",
+    "expected_role": "Meet magnesium needs and support normal muscle, nerve, and energy-metabolism function.",
+    "go_to_reads": [
+      {
+        "publisher": "NIH Office of Dietary Supplements",
+        "title": "Magnesium: Fact Sheet for Health Professionals",
+        "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+      }
+    ],
+    "history_status": "period_confirmation_needed",
+    "key": "magnesium",
+    "metric_map": [
+      {
+        "fit": "moderate",
+        "interpretation": "Can describe sleep timing and duration during a reviewed usage period.",
+        "key": "sleep_hours",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Exploratory recovery context rather than a direct magnesium outcome.",
+        "key": "hrv_sdnn",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Useful for context but not a stand-alone indicator of benefit.",
+        "key": "resting_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Perceived sleep quality is not available in a standard Apple export.",
+        "key": "sleep_quality",
+        "source": "manual"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "A repeatable rating is needed to evaluate the intended personal outcome.",
+        "key": "muscle_tension",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [],
+    "category": "sleep",
+    "display_name": "Melatonin",
+    "evidence_caveat": "Evidence depends on the sleep problem and timing; supplement content can vary, and longer sleep duration does not prove improved sleep quality.",
+    "expected_role": "Provide a timing signal for the biological night and support selected sleep-timing goals.",
+    "go_to_reads": [
+      {
+        "publisher": "National Center for Complementary and Integrative Health",
+        "title": "Melatonin: What You Need To Know",
+        "url": "https://www.nccih.nih.gov/health/melatonin-what-you-need-to-know"
+      }
+    ],
+    "history_status": "confirmed_profile",
+    "key": "melatonin",
+    "metric_map": [
+      {
+        "fit": "strong",
+        "interpretation": "Directly describes recorded sleep duration during comparison windows.",
+        "key": "sleep_hours",
+        "source": "apple_health"
+      },
+      {
+        "fit": "strong",
+        "interpretation": "Bedtime and wake-time shifts align with melatonin's intended timing role.",
+        "key": "sleep_timing",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "A contextual recovery signal, not a primary melatonin outcome.",
+        "key": "resting_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Next-day sleepiness requires a consistent subjective check-in.",
+        "key": "morning_sleepiness",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "KSM-66"
+    ],
+    "category": "botanical",
+    "display_name": "Ashwagandha",
+    "evidence_caveat": "Studies use different extracts and are often small; safety concerns and interactions make product form and individual context important.",
+    "expected_role": "Explore perceived stress, sleep, and recovery in a structured observation period.",
+    "go_to_reads": [
+      {
+        "publisher": "National Center for Complementary and Integrative Health",
+        "title": "Ashwagandha: Usefulness and Safety",
+        "url": "https://www.nccih.nih.gov/health/ashwagandha"
+      }
+    ],
+    "history_status": "confirmed_profile",
+    "key": "ashwagandha",
+    "metric_map": [
+      {
+        "fit": "moderate",
+        "interpretation": "Provides objective sleep-duration context around a reviewed period.",
+        "key": "sleep_hours",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Exploratory autonomic context, not proof of reduced stress.",
+        "key": "resting_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Highly variable and best interpreted as supportive context only.",
+        "key": "hrv_sdnn",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Perceived stress is central to the expected role and needs self-report.",
+        "key": "stress",
+        "source": "manual"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Training recovery requires soreness, performance, or readiness observations.",
+        "key": "recovery",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "algal omega-3",
+      "omega-3",
+      "EPA and DHA"
+    ],
+    "category": "nutrition",
+    "display_name": "Vegetarian omega-3",
+    "evidence_caveat": "Expected effects depend on the actual EPA and DHA content, baseline diet, and the outcome measured; Apple heart metrics are not substitutes for clinical markers.",
+    "expected_role": "Provide long-chain omega-3 fatty acids within a vegetarian diet and support general nutritional and cardiovascular goals.",
+    "go_to_reads": [
+      {
+        "publisher": "NIH Office of Dietary Supplements",
+        "title": "Omega-3 Fatty Acids: Fact Sheet for Health Professionals",
+        "url": "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
+      }
+    ],
+    "history_status": "confirmed_profile",
+    "key": "vegetarian_omega_3",
+    "metric_map": [
+      {
+        "fit": "limited",
+        "interpretation": "A longitudinal context signal, not a validated efficacy endpoint.",
+        "key": "resting_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Consumer HRV is too variable to establish a supplement effect by itself.",
+        "key": "hrv_sdnn",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Useful only for controlling changes in activity across periods.",
+        "key": "active_energy",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Laboratory values, if available, are more relevant than passive wearable metrics.",
+        "key": "blood_lipids",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "arginine"
+    ],
+    "category": "performance",
+    "display_name": "L-arginine",
+    "evidence_caveat": "Research for exercise performance is limited and conflicting, with little support for consistent benefit in healthy active adults.",
+    "expected_role": "Explore nitric-oxide-related blood-flow and workout-support hypotheses.",
+    "go_to_reads": [
+      {
+        "publisher": "NIH Office of Dietary Supplements",
+        "title": "Dietary Supplements for Exercise and Athletic Performance",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-HealthProfessional/"
+      }
+    ],
+    "history_status": "confirmed_profile",
+    "key": "l_arginine",
+    "metric_map": [
+      {
+        "fit": "moderate",
+        "interpretation": "Describes workout exposure but not muscular blood flow or performance.",
+        "key": "workout_minutes",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Heart rate is strongly affected by exercise selection, intensity, heat, and hydration.",
+        "key": "workout_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "An activity estimate that cannot establish a performance effect.",
+        "key": "active_energy",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Loads, repetitions, effort, and workout density are the relevant outcomes.",
+        "key": "training_performance",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "carnitine"
+    ],
+    "category": "performance",
+    "display_name": "L-carnitine",
+    "evidence_caveat": "Healthy adults usually synthesize enough carnitine, and evidence for exercise, weight, or performance outcomes is inconsistent.",
+    "expected_role": "Explore a nutrient involved in fatty-acid transport and energy metabolism.",
+    "go_to_reads": [
+      {
+        "publisher": "NIH Office of Dietary Supplements",
+        "title": "Carnitine: Fact Sheet for Health Professionals",
+        "url": "https://ods.od.nih.gov/factsheets/Carnitine-HealthProfessional/"
+      }
+    ],
+    "history_status": "period_confirmation_needed",
+    "key": "l_carnitine",
+    "metric_map": [
+      {
+        "fit": "limited",
+        "interpretation": "Wearable energy expenditure is an estimate and not a metabolic efficacy test.",
+        "key": "active_energy",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Body-mass change is nonspecific and highly confounded.",
+        "key": "body_mass",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Useful as exposure context rather than an expected direct outcome.",
+        "key": "workout_minutes",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "A repeatable fatigue or perceived-exertion measure is required.",
+        "key": "fatigue",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "probiotic"
+    ],
+    "category": "gut_health",
+    "display_name": "Probiotics",
+    "evidence_caveat": "Effects are strain-, product-, and condition-specific; a generic probiotic label does not predict benefit, and Apple Health has no direct gut-outcome metric.",
+    "expected_role": "Explore strain- and condition-specific digestive outcomes during defined periods.",
+    "go_to_reads": [
+      {
+        "publisher": "NIH Office of Dietary Supplements",
+        "title": "Probiotics: Fact Sheet for Health Professionals",
+        "url": "https://ods.od.nih.gov/factsheets/Probiotics-HealthProfessional/"
+      }
+    ],
+    "history_status": "confirmed_profile",
+    "key": "probiotics",
+    "metric_map": [
+      {
+        "fit": "limited",
+        "interpretation": "Potential context only; it is not a direct digestive outcome.",
+        "key": "sleep_hours",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Can help identify concurrent illness or recovery changes, not probiotic efficacy.",
+        "key": "resting_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "A consistent symptom score is needed for the intended outcome.",
+        "key": "gut_comfort",
+        "source": "manual"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Frequency and stool form require structured manual recording.",
+        "key": "bowel_pattern",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "psyllium",
+      "isabgol",
+      "fibre supplement"
+    ],
+    "category": "gut_health",
+    "display_name": "Fibre and psyllium",
+    "evidence_caveat": "Hydration, food intake, product composition, and gastrointestinal context are major confounders; Apple Health does not record the primary outcomes.",
+    "expected_role": "Support stool regularity and provide a structured soluble-fibre intervention.",
+    "go_to_reads": [
+      {
+        "publisher": "MedlinePlus, U.S. National Library of Medicine",
+        "title": "Psyllium: Drug Information",
+        "url": "https://medlineplus.gov/druginfo/meds/a601104.html"
+      }
+    ],
+    "history_status": "confirmed_profile",
+    "key": "fibre_psyllium",
+    "metric_map": [
+      {
+        "fit": "limited",
+        "interpretation": "Useful only as background context for nutrition or satiety periods.",
+        "key": "body_mass",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Activity can confound appetite and gut patterns but is not an efficacy measure.",
+        "key": "steps",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Frequency and stool form are the most relevant repeatable outcomes.",
+        "key": "bowel_pattern",
+        "source": "manual"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Perceived fullness requires a consistent self-report measure.",
+        "key": "satiety",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "coffee"
+    ],
+    "category": "nootropic",
+    "display_name": "Caffeine",
+    "evidence_caveat": "Response and tolerance vary; timing, total intake, sleep debt, and other products can dominate the observed result.",
+    "expected_role": "Support alertness and reduce perceived exertion while observing sleep and cardiovascular context.",
+    "go_to_reads": [
+      {
+        "publisher": "U.S. Food and Drug Administration",
+        "title": "Spilling the Beans: How Much Caffeine is Too Much?",
+        "url": "https://www.fda.gov/consumers/consumer-updates/spilling-beans-how-much-caffeine-too-much"
+      },
+      {
+        "publisher": "NIH Office of Dietary Supplements",
+        "title": "Dietary Supplements for Exercise and Athletic Performance",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-HealthProfessional/"
+      }
+    ],
+    "history_status": "confirmed_profile",
+    "key": "caffeine",
+    "metric_map": [
+      {
+        "fit": "strong",
+        "interpretation": "Directly describes the sleep-duration context around caffeine periods.",
+        "key": "sleep_hours",
+        "source": "apple_health"
+      },
+      {
+        "fit": "strong",
+        "interpretation": "Useful for examining whether later intake coincides with later sleep.",
+        "key": "sleep_timing",
+        "source": "apple_health"
+      },
+      {
+        "fit": "moderate",
+        "interpretation": "A relevant context signal, though many non-caffeine factors affect it.",
+        "key": "resting_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "moderate",
+        "interpretation": "Useful only when workout type and intensity are comparable.",
+        "key": "workout_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Alertness and focus require a rating or repeatable performance task.",
+        "key": "focus",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "citrulline"
+    ],
+    "category": "research_candidate",
+    "display_name": "L-citrulline",
+    "evidence_caveat": "Human performance trials remain few and conflicting, so a community or mechanistic signal should not be treated as an expected personal result.",
+    "expected_role": "Research a nitric-oxide-related blood-flow and exercise-performance hypothesis.",
+    "go_to_reads": [
+      {
+        "publisher": "NIH Office of Dietary Supplements",
+        "title": "Dietary Supplements for Exercise and Athletic Performance",
+        "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-HealthProfessional/"
+      }
+    ],
+    "history_status": "researched_only",
+    "key": "l_citrulline",
+    "metric_map": [
+      {
+        "fit": "limited",
+        "interpretation": "Describes exercise exposure, not performance quality.",
+        "key": "workout_minutes",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "Too confounded to establish a blood-flow or performance effect.",
+        "key": "workout_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Comparable loads, repetitions, and effort would be needed for an experiment.",
+        "key": "training_performance",
+        "source": "manual"
+      }
+    ]
+  },
+  {
+    "aliases": [
+      "turmeric extract"
+    ],
+    "category": "research_candidate",
+    "display_name": "Curcumin",
+    "evidence_caveat": "Formulations and bioavailability differ substantially, evidence is not definitive for most promoted uses, and some enhanced-bioavailability products raise safety concerns.",
+    "expected_role": "Research inflammation-, discomfort-, and recovery-related hypotheses.",
+    "go_to_reads": [
+      {
+        "publisher": "National Center for Complementary and Integrative Health",
+        "title": "Turmeric: Usefulness and Safety",
+        "url": "https://www.nccih.nih.gov/health/turmeric"
+      }
+    ],
+    "history_status": "researched_only",
+    "key": "curcumin",
+    "metric_map": [
+      {
+        "fit": "limited",
+        "interpretation": "Provides training-load context, not a direct recovery outcome.",
+        "key": "workout_minutes",
+        "source": "apple_health"
+      },
+      {
+        "fit": "limited",
+        "interpretation": "An indirect context signal with no specific interpretation here.",
+        "key": "resting_heart_rate",
+        "source": "apple_health"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "A structured soreness or discomfort score would be required.",
+        "key": "soreness",
+        "source": "manual"
+      },
+      {
+        "fit": "manual",
+        "interpretation": "Comparable sessions are needed to evaluate recovery-related hypotheses.",
+        "key": "training_performance",
+        "source": "manual"
+      }
+    ]
+  }
+]

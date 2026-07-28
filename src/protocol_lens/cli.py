@@ -44,6 +44,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path("public-results/results.json"),
     )
+    catalog = commands.add_parser(
+        "catalog",
+        help="Write the public-safe supplement knowledge catalog",
+    )
+    catalog.add_argument(
+        "--out",
+        type=Path,
+        default=Path("public-results/supplements.json"),
+    )
     return parser
 
 
@@ -85,7 +94,7 @@ def main() -> None:
         from .launcher import main as launch_app
 
         launch_app()
-    else:
+    elif args.command == "snapshot":
         from .experiments import public_snapshot_json
 
         connection = connect(args.db)
@@ -96,6 +105,12 @@ def main() -> None:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(content)
         print(f"Summary snapshot ready for review: {args.out}")
+    else:
+        from .supplement_catalog import public_supplement_catalog_json
+
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(public_supplement_catalog_json())
+        print(f"Supplement catalog ready: {args.out}")
 
 
 if __name__ == "__main__":
