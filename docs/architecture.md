@@ -196,23 +196,42 @@ DuckDB is embedded, local, and designed for analytical queries. It avoids a serv
 - reproducible report generation;
 - later local desktop packaging.
 
-## Personal Lab layer
+## Supplement Lens layer
 
-Nootropics and supplements will be introduced after the Apple-only baseline is stable. They should be stored as explicit intervals and dose events, separate from public research data.
+Supplement Lens keeps public research context separate from private usage periods and results.
 
 ```mermaid
 flowchart TD
-    A["Compound definition"] --> B["Personal usage interval"]
-    A --> C["Dose event"]
-    B --> D["Apple metric window"]
-    C --> D
+    A["Public research profile"] --> B["Expected role and evidence boundary"]
+    C["Private usage period"] --> D["Apple metric window"]
+    B --> D
     D --> E["Before / during / after comparison"]
+    E --> F["Confounder and decision review"]
+    F --> G{"Publication gate"}
+    G -->|"approved"| H["Derived public result"]
+    G -->|"not approved"| I["Local result only"]
 ```
 
 An `intervention_profiles` catalog stores description, expected outcomes, personal goal, timeline
 color, and source confidence. It does not store observed outcomes. Observations are calculated from
 usage periods joined to Apple metric windows, so the expected story and measured result remain
 separate.
+
+The code-level supplement knowledge catalog contains no usage dates or raw measurements. Adding a
+new research profile automatically makes it selectable in Supplement Lens without creating a
+personal-use claim.
+
+## Workout-result projection
+
+The local `workouts` table can be reduced to a public-safe aggregate containing:
+
+- calendar-year and calendar-month counts;
+- total and median recorded duration;
+- active weeks and consecutive active-week runs;
+- activity-type aggregates.
+
+Exact workout timestamps, devices, source applications, and record identifiers do not enter this
+projection. Individual-session inspection remains a local-only app feature.
 
 ## Public result snapshots
 
@@ -229,10 +248,13 @@ flowchart LR
 
 The sharing filter:
 
-- accepts only intervention periods explicitly marked `publishable`;
+- requires a publishable research profile;
+- requires a confirmed, publishable usage period;
+- requires an explicit experiment review and decision;
 - replaces local period identifiers with non-reversible public identifiers;
 - removes dates, doses, notes, purposes, and raw metric means;
-- retains only relative change, direction, observation counts, coverage, and limitations.
+- retains only relative change, direction, review decision, observation counts, coverage, and
+  limitations.
 
 The application never commits this output automatically. Publication is a separate, reviewed Git
 operation.

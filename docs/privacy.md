@@ -44,10 +44,19 @@ extractions on the local Mac.
 The sample generator uses deterministic synthetic values. It contains no exported Apple records
 and must not be presented as observed personal history.
 
-## Personal Lab
+## Supplement Lens and Personal Lab
 
-Personal Lab entries remain local unless an individual period is explicitly marked
-`publishable`. A shareable snapshot contains:
+The public research catalog contains evidence context, expected roles, metric-fit guidance, and
+source links. It contains no personal usage dates or Apple measurements.
+
+Personal Lab entries remain local unless all publication checks pass. A shareable snapshot
+requires:
+
+- a publishable profile;
+- a confirmed, publishable usage period;
+- an explicit experiment review.
+
+The resulting snapshot contains:
 
 - a reviewed intervention label;
 - relative change and direction;
@@ -56,6 +65,12 @@ Personal Lab entries remain local unless an individual period is explicitly mark
 
 It contains no exact dates, doses, notes, raw before/during/after values, or local identifiers.
 Every snapshot requires review before it is added to GitHub.
+
+## Workout aggregates
+
+The public workout artifact contains only calendar aggregates. It excludes exact workout
+timestamps, record identifiers, devices, source applications, and session rows. The local app can
+still show individual sessions on the Mac.
 
 ## Reports
 

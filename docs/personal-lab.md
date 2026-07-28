@@ -1,8 +1,19 @@
-# Personal Lab
+# Supplement Lens and Personal Lab
 
-Personal Lab connects a described intervention with one or more usage periods and Apple Health
-signals. Profiles and periods are separate so uncertain historical dates do not weaken the
-descriptive catalog.
+Supplement Lens provides the public research profile; Personal Lab connects that profile with one
+or more private usage periods and Apple Health signals. Keeping these layers separate means an
+evidence profile can be useful even when historical dates are incomplete.
+
+## Public research profile
+
+The built-in catalog answers:
+
+- What neutral role was expected?
+- What does the evidence not establish?
+- Which Apple signals are a strong, moderate, or limited fit?
+- Which outcomes require manual tracking?
+- Which primary or official sources are useful starting points?
+- Is the item present in history, awaiting period confirmation, or research-only?
 
 ## Profile
 
@@ -45,6 +56,19 @@ trend preserve detail without making multi-year windows unreadable.
 The result language is deliberately observational: “higher during” or “lower during.” It does not
 claim that the intervention caused the change.
 
+## Experiment review
+
+A usage period does not become a public result simply because the chart exists. The review closes
+the loop:
+
+```text
+Question → Period → Signals → Confounders → Continue / change / stop
+```
+
+The user confirms date confidence, records a decision, notes important confounders, and separately
+approves public sharing. A public result requires a publishable profile, confirmed dates,
+publishable period, and completed review.
+
 ## Preparing reconstructed history
 
 Use the two templates:
@@ -59,10 +83,12 @@ confidence labels have been checked.
 
 The interface supports:
 
+- public research profile without a personal-use claim;
 - profile without dates;
 - dates without a completed profile;
 - dates that do not overlap Apple data;
 - one period with multiple Apple outcomes;
 - multiple periods for repeated within-person comparison.
 
-No real intervention records are shipped with the repository.
+No real intervention periods are shipped with the repository. Public research profiles contain no
+dates, doses, raw measurements, or private notes.
