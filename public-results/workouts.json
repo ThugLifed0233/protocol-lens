@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0",
+  "result_type": "aggregate_workout_history",
+  "privacy": {
+    "time_granularity": "year_or_coarser",
+    "workout_level_rows_included": false,
+    "source_or_device_metadata_included": false
+  },
+  "overview": {
+    "workout_count": 815,
+    "total_minutes": 63883.1,
+    "median_duration_minutes": 77.4,
+    "active_weeks": 187,
+    "activity_type_count": 7,
+    "longest_consistency_streak_weeks": 56
+  },
+  "by_year": [
+    {
+      "year": 2022,
+      "workout_count": 85,
+      "total_minutes": 8629.3,
+      "active_weeks": 21
+    },
+    {
+      "year": 2023,
+      "workout_count": 259,
+      "total_minutes": 26939.2,
+      "active_weeks": 51
+    },
+    {
+      "year": 2024,
+      "workout_count": 251,
+      "total_minutes": 16074.4,
+      "active_weeks": 48
+    },
+    {
+      "year": 2025,
+      "workout_count": 181,
+      "total_minutes": 10830.4,
+      "active_weeks": 49
+    },
+    {
+      "year": 2026,
+      "partial_year": true,
+      "workout_count": 39,
+      "total_minutes": 1409.8,
+      "active_weeks": 18
+    }
+  ],
+  "activity_types": [
+    {
+      "activity_type": "Traditional strength training",
+      "workout_count": 604,
+      "total_minutes": 58611.7,
+      "active_weeks": 177
+    },
+    {
+      "activity_type": "Walking",
+      "workout_count": 179,
+      "total_minutes": 4612.2,
+      "active_weeks": 102
+    },
+    {
+      "activity_type": "High-intensity interval training",
+      "workout_count": 19,
+      "total_minutes": 354.6,
+      "active_weeks": 10
+    },
+    {
+      "activity_type": "Running",
+      "workout_count": 5,
+      "total_minutes": 49.3,
+      "active_weeks": 5
+    },
+    {
+      "activity_type": "Cycling",
+      "workout_count": 4,
+      "total_minutes": 32.4,
+      "active_weeks": 4
+    },
+    {
+      "activity_type": "Functional strength training",
+      "workout_count": 3,
+      "total_minutes": 221.4,
+      "active_weeks": 3
+    },
+    {
+      "activity_type": "Rowing",
+      "workout_count": 1,
+      "total_minutes": 1.4,
+      "active_weeks": 1
+    }
+  ],
+  "limitations": [
+    "Results describe only workouts present in the local database.",
+    "Calendar aggregates do not establish training quality or health effects.",
+    "A recorded consistency streak is not proof that unrecorded weeks were inactive."
+  ]
+}
