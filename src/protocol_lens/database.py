@@ -66,6 +66,18 @@ CREATE TABLE IF NOT EXISTS compound_periods (
     notes VARCHAR,
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS intervention_profiles (
+    intervention_key VARCHAR PRIMARY KEY,
+    display_name VARCHAR NOT NULL,
+    category VARCHAR NOT NULL,
+    description VARCHAR,
+    expected_outcomes VARCHAR,
+    personal_goal VARCHAR,
+    color VARCHAR NOT NULL,
+    source_confidence VARCHAR NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 """
 
 

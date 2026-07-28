@@ -27,6 +27,122 @@ INTERVENTION_COLUMNS = {
     "visibility",
     "notes",
 }
+PROFILE_COLUMNS = {
+    "intervention",
+    "compound",
+    "name",
+    "category",
+    "description",
+    "expected_outcomes",
+    "personal_goal",
+    "color",
+    "confidence",
+}
+
+
+def save_intervention_profile(
+    connection: duckdb.DuckDBPyConnection,
+    *,
+    display_name: str,
+    category: str,
+    description: str = "",
+    expected_outcomes: str = "",
+    personal_goal: str = "",
+    color: str = "#BF5AF2",
+    confidence: str = "confirmed",
+) -> str:
+    """Create or update the descriptive profile behind one intervention."""
+    if not display_name.strip():
+        raise ValueError("Add an intervention name")
+    if category not in INTERVENTION_CATEGORIES:
+        raise ValueError("Unsupported intervention category")
+    if confidence not in {"confirmed", "approximate", "unverified"}:
+        raise ValueError("Unsupported confidence value")
+    if len(color) != 7 or not color.startswith("#"):
+        raise ValueError("Color must be a six-digit hex value")
+    try:
+        int(color[1:], 16)
+    except ValueError as error:
+        raise ValueError("Color must be a six-digit hex value") from error
+
+    intervention_key = canonical_metric(display_name)
+    connection.execute(
+        """
+        INSERT INTO intervention_profiles (
+            intervention_key, display_name, category, description, expected_outcomes,
+            personal_goal, color, source_confidence
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (intervention_key) DO UPDATE SET
+            display_name = excluded.display_name,
+            category = excluded.category,
+            description = excluded.description,
+            expected_outcomes = excluded.expected_outcomes,
+            personal_goal = excluded.personal_goal,
+            color = excluded.color,
+            source_confidence = excluded.source_confidence,
+            updated_at = now()
+        """,
+        [
+            intervention_key,
+            display_name.strip(),
+            category,
+            description.strip(),
+            expected_outcomes.strip(),
+            personal_goal.strip(),
+            color.upper(),
+            confidence,
+        ],
+    )
+    return intervention_key
+
+
+def list_intervention_profiles(connection: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    return connection.execute(
+        """
+        SELECT intervention_key, display_name, category, description, expected_outcomes,
+               personal_goal, color, source_confidence, updated_at
+        FROM intervention_profiles
+        ORDER BY display_name
+        """
+    ).df()
+
+
+def import_intervention_profiles(
+    connection: duckdb.DuckDBPyConnection,
+    frame: pd.DataFrame,
+) -> int:
+    """Import reviewed profile descriptions without creating usage periods."""
+    normalized = frame.copy()
+    normalized.columns = [str(column).strip().lower() for column in normalized.columns]
+    unexpected = set(normalized.columns) - PROFILE_COLUMNS
+    if unexpected:
+        raise ValueError(f"Unsupported profile columns: {', '.join(sorted(unexpected))}")
+    name_column = next(
+        (column for column in ("intervention", "compound", "name") if column in normalized),
+        None,
+    )
+    if not name_column:
+        raise ValueError("Add an intervention, compound, or name column")
+
+    imported = 0
+    for row in normalized.to_dict(orient="records"):
+        display_name = _text(row.get(name_column))
+        if not display_name:
+            continue
+        save_intervention_profile(
+            connection,
+            display_name=display_name,
+            category=_text(row.get("category")) or "supplement",
+            description=_text(row.get("description")),
+            expected_outcomes=_text(row.get("expected_outcomes")),
+            personal_goal=_text(row.get("personal_goal")),
+            color=_text(row.get("color")) or "#BF5AF2",
+            confidence=_text(row.get("confidence")) or "approximate",
+        )
+        imported += 1
+    if not imported:
+        raise ValueError("No valid intervention profiles were found")
+    return imported
 
 
 def add_compound_period(
