@@ -105,6 +105,20 @@ protocol-lens snapshot
 
 See [`public-results/`](public-results/) for the publication rules and a synthetic example.
 
+### Personal Lab
+
+Personal Lab is the supplement-to-Apple-metric explorer:
+
+1. describe a supplement or nootropic;
+2. record one or more usage periods;
+3. choose an Apple metric;
+4. inspect the metric timeline with each period highlighted;
+5. compare equal before, during, and after windows.
+
+The profile keeps “what it is,” “what was expected,” and “why it was tracked” separate from the
+observed Apple result. See the [Personal Lab structure](docs/personal-lab.md) and the profile and
+period templates in [`examples/`](examples/).
+
 ### 4. Command-line import
 
 ```bash

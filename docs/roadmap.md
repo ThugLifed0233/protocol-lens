@@ -29,6 +29,8 @@
 
 - [x] Quick-add a supplement or nootropic interval.
 - [x] Support broken usage periods.
+- [x] Supplement profile with description, expected outcomes, goal, and color.
+- [x] Supplement-to-Apple-metric visual explorer.
 - [ ] Dose events and product details.
 - [x] Before / during / after windows.
 - [ ] Compare repeated periods of the same compound.

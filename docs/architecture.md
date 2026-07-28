@@ -209,6 +209,11 @@ flowchart TD
     D --> E["Before / during / after comparison"]
 ```
 
+An `intervention_profiles` catalog stores description, expected outcomes, personal goal, timeline
+color, and source confidence. It does not store observed outcomes. Observations are calculated from
+usage periods joined to Apple metric windows, so the expected story and measured result remain
+separate.
+
 ## Public result snapshots
 
 The personal database may contain exact intervention dates, dose notes, purposes, and raw Apple
