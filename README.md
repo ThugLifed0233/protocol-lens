@@ -15,6 +15,11 @@ Protocol Lens takes an Apple Health export, keeps the data on your computer, and
 > [!IMPORTANT]
 > Protocol Lens is exploratory software, not a medical device. A correlation is not proof that one metric caused another.
 
+The project formalizes a long-running personal health and performance research system spanning
+nutrition, strength training, recovery, supplements, and nootropics. Its central loop is:
+research an intervention, state the expected result, record the protocol, align it with observable
+outcomes, review confounders, and decide what to continue, change, stop, or measure next.
+
 ## The first release
 
 This repository intentionally begins with one source: **Apple Health**.
@@ -119,6 +124,27 @@ The profile keeps “what it is,” “what was expected,” and “why it was t
 observed Apple result. See the [Personal Lab structure](docs/personal-lab.md) and the profile and
 period templates in [`examples/`](examples/).
 
+![Synthetic Supplement Lens preview](docs/assets/supplement-lens.png)
+
+The built-in public research index currently covers 14 supplement/nootropic profiles. A profile can
+be published before a personal result, but an Apple-linked result requires confirmed dates, an
+explicit experiment review, and separate approval of both the profile and period.
+
+### Workout history
+
+The Workouts tab turns Apple workout events into a long-range aggregate view:
+
+- recorded workouts and training time;
+- active weeks and longest observed weekly consistency run;
+- training rhythm by month;
+- activity mix;
+- year-by-year history;
+- optional workout-day health-signal context.
+
+Individual sessions stay local. The public artifact contains calendar aggregates only.
+
+![Synthetic workout-history preview](docs/assets/workout-history.png)
+
 ### Adjustable timeline
 
 The primary timeline opens on the most recent year instead of compressing the complete history
@@ -205,6 +231,10 @@ default.
 
 Derived results can still reveal personal information. Public snapshots therefore require manual
 review and explicit approval before being committed.
+
+Reviewed public artifacts are available in [`public-results/`](public-results/). The current
+repository publishes an aggregate workout history and the supplement/nootropic research index;
+personal supplement outcome rows remain empty until their usage windows are confirmed.
 
 Read the complete [privacy model](docs/privacy.md) before using real data.
 
