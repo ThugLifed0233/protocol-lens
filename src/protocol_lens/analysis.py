@@ -18,6 +18,21 @@ class Correlation:
     observations: int
 
 
+@dataclass(frozen=True)
+class MetricWindow:
+    metric: str
+    start: pd.Timestamp
+    end: pd.Timestamp
+    mean: float
+    median: float
+    minimum: float
+    maximum: float
+    observations: int
+    coverage: float
+    previous_mean: float | None
+    change_percent: float | None
+
+
 def daily_metrics(connection: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     signal_frames = []
     metric_keys = [
@@ -106,4 +121,44 @@ def workout_comparison(frame: pd.DataFrame, metric: str) -> tuple[float, float, 
         float(rest_days.mean()),
         len(workout_days),
         len(rest_days),
+    )
+
+
+def metric_window_summary(
+    frame: pd.DataFrame,
+    metric: str,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+) -> MetricWindow | None:
+    """Describe one visible graph window and compare it with the equal preceding window."""
+    if metric not in frame or end < start:
+        return None
+    normalized_start = pd.Timestamp(start).normalize()
+    normalized_end = pd.Timestamp(end).normalize()
+    visible = frame.loc[normalized_start:normalized_end, metric].dropna()
+    if visible.empty:
+        return None
+
+    calendar_days = max((normalized_end - normalized_start).days + 1, 1)
+    previous_end = normalized_start - pd.Timedelta(days=1)
+    previous_start = previous_end - pd.Timedelta(days=calendar_days - 1)
+    previous = frame.loc[previous_start:previous_end, metric].dropna()
+    current_mean = float(visible.mean())
+    previous_mean = float(previous.mean()) if not previous.empty else None
+    change = None
+    if previous_mean is not None and previous_mean != 0:
+        change = (current_mean - previous_mean) / abs(previous_mean) * 100
+
+    return MetricWindow(
+        metric=metric,
+        start=normalized_start,
+        end=normalized_end,
+        mean=current_mean,
+        median=float(visible.median()),
+        minimum=float(visible.min()),
+        maximum=float(visible.max()),
+        observations=len(visible),
+        coverage=min(len(visible) / calendar_days, 1.0),
+        previous_mean=previous_mean,
+        change_percent=change,
     )

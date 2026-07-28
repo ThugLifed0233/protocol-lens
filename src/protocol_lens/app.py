@@ -17,8 +17,13 @@ import requests
 import streamlit as st
 
 from protocol_lens import __version__
-from protocol_lens.analysis import correlations, daily_metrics, workout_comparison
+from protocol_lens.analysis import (
+    correlations,
+    daily_metrics,
+    workout_comparison,
+)
 from protocol_lens.apple_health import iter_export
+from protocol_lens.catalog import BY_KEY
 from protocol_lens.database import connect, ingest_records
 from protocol_lens.experiments import (
     add_compound_period,
@@ -48,6 +53,19 @@ INTERVENTION_TEMPLATE = (
     "intervention,category,start_date,end_date,dose_note,purpose,confidence,visibility,notes\n"
     "Example supplement,supplement,2026-07-01,2026-07-14,,,confirmed,personal_only,\n"
 )
+METRIC_UNITS = {
+    "resting_heart_rate": "bpm",
+    "walking_heart_rate": "bpm",
+    "hrv_sdnn": "ms",
+    "sleep_hours": "hours",
+    "steps": "steps/day",
+    "active_energy": "kcal/day",
+    "walking_running_distance": "km/day",
+    "body_mass": "kg",
+    "vo2_max": "mL/kg/min",
+    "workout_minutes": "min/day",
+    "workout_count": "sessions/day",
+}
 
 st.set_page_config(
     page_title="Protocol Lens",
@@ -499,13 +517,155 @@ def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
     profile = profile_rows.iloc[0] if not profile_rows.empty else None
     color = str(profile["color"]) if profile is not None else "#BF5AF2"
 
-    description_column, context_column = st.columns([1.4, 1])
-    with description_column:
-        description = (
-            str(profile["description"]).strip()
-            if profile is not None and not pd.isna(profile["description"])
-            else ""
+    analysis = analyze_compound_periods(connection)
+    selected_analysis = (
+        analysis[analysis["compound"].map(canonical_metric) == selected_key]
+        if not analysis.empty
+        else pd.DataFrame()
+    )
+    if selected_periods.empty:
+        _profile_context(profile, selected_name, color)
+        st.caption("Add a usage period to connect this profile with Apple metrics.")
+        return
+
+    if selected_analysis.empty:
+        _profile_context(profile, selected_name, color)
+        st.info("Apple data does not yet overlap these periods.")
+        return
+
+    metric_keys = selected_analysis["metric"].drop_duplicates().tolist()
+    metric_column, period_column = st.columns([1, 1.25])
+    with metric_column:
+        chosen_metric = st.selectbox(
+            "Apple metric",
+            metric_keys,
+            format_func=metric_label,
+            key=f"metric_{selected_key}",
         )
+    with period_column:
+        period_options = ["all", *selected_periods["period_id"].tolist()]
+        period_choice = st.selectbox(
+            "Usage period",
+            period_options,
+            format_func=lambda value: (
+                f"All {len(selected_periods)} recorded periods"
+                if value == "all"
+                else _period_label(selected_periods, value)
+            ),
+            key=f"period_{selected_key}",
+        )
+
+    focus_periods = (
+        selected_periods
+        if period_choice == "all"
+        else selected_periods[selected_periods["period_id"] == period_choice]
+    )
+    metric_results = selected_analysis[selected_analysis["metric"] == chosen_metric].copy()
+    if period_choice != "all":
+        metric_results = metric_results[metric_results["period_id"] == period_choice]
+
+    frame = daily_metrics(connection)
+    period_starts = pd.to_datetime(focus_periods["start_date"])
+    period_ends = pd.to_datetime(focus_periods["end_date"], errors="coerce")
+    focus_start = period_starts.min() - pd.Timedelta(days=14)
+    focus_end = (
+        period_ends.max()
+        if period_ends.notna().any()
+        else pd.Timestamp(frame.index.max())
+    ) + pd.Timedelta(days=14)
+    range_start, range_end = _date_window_controls(
+        frame,
+        key=f"supplement_{selected_key}",
+        default="Periods",
+        focus=(focus_start, focus_end),
+    )
+    visible_frame = frame.loc[range_start:range_end]
+
+    if chosen_metric in visible_frame and visible_frame[chosen_metric].notna().any():
+        with st.container(border=True):
+            st.markdown(
+                '<div class="chart-heading"><small>APPLE SIGNAL × PERSONAL PERIOD</small>'
+                f"<strong>{html.escape(metric_label(chosen_metric))}</strong>"
+                f"<span>{range_start:%d %b %Y} — {range_end:%d %b %Y}</span></div>",
+                unsafe_allow_html=True,
+            )
+            st.plotly_chart(
+                _intervention_metric_figure(
+                    visible_frame,
+                    chosen_metric,
+                    focus_periods,
+                    color,
+                    selected_name,
+                ),
+                width="stretch",
+                config={"displayModeBar": False, "scrollZoom": True},
+            )
+
+    _supplement_outcome_cards(metric_results, chosen_metric, color)
+    _profile_context(profile, selected_name, color)
+    _period_summary(focus_periods)
+
+    with st.expander("View period-level observations"):
+        display_results = metric_results[
+            [
+                "start_date",
+                "end_date",
+                "baseline_mean",
+                "during_mean",
+                "after_mean",
+                "relative_change_percent",
+                "baseline_days",
+                "during_days",
+                "analysis_confidence",
+            ]
+        ].rename(
+            columns={
+                "start_date": "Period start",
+                "end_date": "Period end",
+                "baseline_mean": "Before",
+                "during_mean": "During",
+                "after_mean": "After",
+                "relative_change_percent": "Change %",
+                "baseline_days": "Before days",
+                "during_days": "During days",
+                "analysis_confidence": "Confidence",
+            }
+        )
+        st.dataframe(
+            display_results,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "Before": st.column_config.NumberColumn(format="%.2f"),
+                "During": st.column_config.NumberColumn(format="%.2f"),
+                "After": st.column_config.NumberColumn(format="%.2f"),
+                "Change %": st.column_config.NumberColumn(format="%.1f%%"),
+            },
+        )
+    st.caption(
+        "Observed changes describe these windows only. They do not show that the intervention "
+        "caused the metric to change."
+    )
+
+
+def _profile_context(profile: pd.Series | None, selected_name: str, color: str) -> None:
+    description = (
+        str(profile["description"]).strip()
+        if profile is not None and not pd.isna(profile["description"])
+        else ""
+    )
+    expected = (
+        str(profile["expected_outcomes"]).strip()
+        if profile is not None and not pd.isna(profile["expected_outcomes"])
+        else ""
+    )
+    goal = (
+        str(profile["personal_goal"]).strip()
+        if profile is not None and not pd.isna(profile["personal_goal"])
+        else ""
+    )
+    description_column, context_column = st.columns([1.35, 1])
+    with description_column:
         st.markdown(
             '<div class="profile-card" style="--profile-color:'
             f'{html.escape(color)}"><small>PROFILE</small>'
@@ -514,16 +674,6 @@ def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
             unsafe_allow_html=True,
         )
     with context_column:
-        expected = (
-            str(profile["expected_outcomes"]).strip()
-            if profile is not None and not pd.isna(profile["expected_outcomes"])
-            else ""
-        )
-        goal = (
-            str(profile["personal_goal"]).strip()
-            if profile is not None and not pd.isna(profile["personal_goal"])
-            else ""
-        )
         st.markdown(
             '<div class="expectation-card"><small>EXPECTED</small>'
             f"<p>{html.escape(expected or 'Not recorded yet.')}</p>"
@@ -532,88 +682,76 @@ def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
             unsafe_allow_html=True,
         )
 
-    analysis = analyze_compound_periods(connection)
-    selected_analysis = (
-        analysis[analysis["compound"].map(canonical_metric) == selected_key]
-        if not analysis.empty
-        else pd.DataFrame()
-    )
-    if selected_periods.empty:
-        st.caption("Add a usage period to connect this profile with Apple metrics.")
-        return
 
-    period_count = len(selected_periods)
-    earliest = pd.to_datetime(selected_periods["start_date"]).min().date()
-    end_values = pd.to_datetime(selected_periods["end_date"], errors="coerce")
+def _supplement_outcome_cards(
+    results: pd.DataFrame,
+    metric: str,
+    color: str,
+) -> None:
+    if results.empty:
+        return
+    baseline = _weighted_result(results, "baseline_mean", "baseline_days")
+    during = _weighted_result(results, "during_mean", "during_days")
+    after = _weighted_result(results, "after_mean", "after_days")
+    change = (
+        (during - baseline) / abs(baseline) * 100
+        if baseline is not None and during is not None and baseline != 0
+        else None
+    )
+    coverage = float(results["coverage"].mean()) * 100
+    confidence_counts = results["analysis_confidence"].value_counts()
+    confidence = str(confidence_counts.index[0]).title() if not confidence_counts.empty else "—"
+    unit = _metric_unit(metric)
+    values = [
+        ("BEFORE", _format_metric_value(baseline, metric), unit),
+        (
+            "DURING",
+            _format_metric_value(during, metric),
+            f"{_format_change(change)} vs before",
+        ),
+        ("AFTER", _format_metric_value(after, metric), unit),
+        ("DATA QUALITY", f"{coverage:.0f}%", f"{confidence} confidence"),
+    ]
+    columns = st.columns(4)
+    for column, (label, value, detail) in zip(columns, values, strict=True):
+        with column:
+            st.markdown(
+                f'<div class="range-card" style="--metric:{html.escape(color)}">'
+                f"<small>{html.escape(label)}</small><strong>{html.escape(value)}</strong>"
+                f"<span>{html.escape(detail)}</span></div>",
+                unsafe_allow_html=True,
+            )
+
+
+def _period_summary(periods: pd.DataFrame) -> None:
+    period_count = len(periods)
+    earliest = pd.to_datetime(periods["start_date"]).min().date()
+    end_values = pd.to_datetime(periods["end_date"], errors="coerce")
     latest = end_values.max().date() if end_values.notna().any() else "ongoing"
     st.markdown(
         '<div class="period-strip">'
-        f"<span><b>{period_count}</b> recorded period{'s' if period_count != 1 else ''}</span>"
+        f"<span><b>{period_count}</b> period{'s' if period_count != 1 else ''} shown</span>"
         f"<span>First: <b>{earliest}</b></span><span>Latest end: <b>{latest}</b></span></div>",
         unsafe_allow_html=True,
     )
 
-    if selected_analysis.empty:
-        st.info("Apple data does not yet overlap these periods.")
-        return
 
-    metric_keys = selected_analysis["metric"].drop_duplicates().tolist()
-    chosen_metric = st.selectbox(
-        "Apple metric",
-        metric_keys,
-        format_func=metric_label,
-        key=f"metric_{selected_key}",
-    )
-    metric_results = selected_analysis[selected_analysis["metric"] == chosen_metric].copy()
-    frame = daily_metrics(connection)
-    if chosen_metric in frame and frame[chosen_metric].notna().any():
-        st.plotly_chart(
-            _intervention_metric_figure(
-                frame,
-                chosen_metric,
-                selected_periods,
-                color,
-                selected_name,
-            ),
-            width="stretch",
-            config={"displayModeBar": False},
-        )
+def _weighted_result(results: pd.DataFrame, value: str, weight: str) -> float | None:
+    valid = results[[value, weight]].dropna()
+    if valid.empty or float(valid[weight].sum()) <= 0:
+        return None
+    return float((valid[value] * valid[weight]).sum() / valid[weight].sum())
 
-    st.markdown("##### What was observed")
-    display_results = metric_results[
-        [
-            "start_date",
-            "end_date",
-            "relative_change_percent",
-            "direction",
-            "baseline_days",
-            "during_days",
-            "analysis_confidence",
-        ]
-    ].rename(
-        columns={
-            "start_date": "Period start",
-            "end_date": "Period end",
-            "relative_change_percent": "Change %",
-            "direction": "Observed direction",
-            "baseline_days": "Before days",
-            "during_days": "During days",
-            "analysis_confidence": "Confidence",
-        }
+
+def _period_label(periods: pd.DataFrame, period_id: str) -> str:
+    row = periods.loc[periods["period_id"] == period_id].iloc[0]
+    start = pd.Timestamp(row["start_date"]).strftime("%d %b %Y")
+    end = (
+        "ongoing"
+        if pd.isna(row["end_date"])
+        else pd.Timestamp(row["end_date"]).strftime("%d %b %Y")
     )
-    display_results["Observed direction"] = display_results["Observed direction"].map(
-        lambda value: str(value).replace("_", " ").title()
-    )
-    st.dataframe(
-        display_results,
-        width="stretch",
-        hide_index=True,
-        column_config={"Change %": st.column_config.NumberColumn(format="%.1f%%")},
-    )
-    st.caption(
-        "Observed changes describe these windows only. They do not show that the intervention "
-        "caused the metric to change."
-    )
+    return f"{start} — {end}"
 
 
 def _profile_form(connection: duckdb.DuckDBPyConnection) -> None:
@@ -886,15 +1024,29 @@ def _intervention_metric_figure(
     intervention_name: str,
 ) -> go.Figure:
     values = frame[metric].dropna()
+    color_metric = _metric_color(metric)
+    trend = _trend_series(values)
     figure = go.Figure()
     figure.add_trace(
         go.Scatter(
             x=values.index,
             y=values.values,
-            name=metric_label(metric),
+            name="Daily",
             mode="lines",
-            line={"color": "#64D2FF", "width": 2},
+            line={"color": _rgba(color_metric, 0.22), "width": 1},
             hovertemplate="%{x|%d %b %Y}<br>%{y:.2f}<extra></extra>",
+            connectgaps=False,
+        )
+    )
+    figure.add_trace(
+        go.Scatter(
+            x=trend.index,
+            y=trend.values,
+            name=_trend_label(values),
+            mode="lines",
+            line={"color": color_metric, "width": 3, "shape": "spline"},
+            hovertemplate="%{x|%d %b %Y}<br>%{y:.2f}<extra></extra>",
+            connectgaps=False,
         )
     )
     for row in periods.itertuples(index=False):
@@ -906,14 +1058,126 @@ def _intervention_metric_figure(
             opacity=0.16,
             line_width=1,
             line_color=color,
-            annotation_text=intervention_name,
-            annotation_position="top left",
         )
     figure.update_layout(
-        title=f"{metric_label(metric)} across recorded periods",
-        yaxis_title=metric_label(metric),
+        yaxis_title=_metric_unit(metric),
+        dragmode="zoom",
+        showlegend=True,
     )
-    return _chart_layout(figure, 420)
+    figure.add_annotation(
+        text=f"{intervention_name} periods",
+        xref="paper",
+        yref="paper",
+        x=1,
+        y=1.12,
+        showarrow=False,
+        font={"color": color, "size": 11},
+    )
+    return _chart_layout(figure, 460)
+
+
+def _date_window_controls(
+    frame: pd.DataFrame,
+    *,
+    key: str,
+    default: str,
+    focus: tuple[pd.Timestamp, pd.Timestamp] | None = None,
+) -> tuple[pd.Timestamp, pd.Timestamp]:
+    earliest = pd.Timestamp(frame.index.min()).normalize()
+    latest = pd.Timestamp(frame.index.max()).normalize()
+    options = ["30D", "90D", "6M", "1Y"]
+    if focus is not None:
+        options.append("Periods")
+    options.extend(["All", "Custom"])
+    selection = st.segmented_control(
+        "Visible window",
+        options,
+        default=default if default in options else "1Y",
+        key=f"{key}_range",
+        label_visibility="collapsed",
+    )
+    choice = selection or default
+
+    if choice == "All":
+        return earliest, latest
+    if choice == "Periods" and focus is not None:
+        start = max(pd.Timestamp(focus[0]).normalize(), earliest)
+        end = min(pd.Timestamp(focus[1]).normalize(), latest)
+        return start, end
+    if choice == "Custom":
+        default_start = max(latest - pd.DateOffset(years=1), earliest)
+        custom = st.date_input(
+            "Custom dates",
+            value=(default_start.date(), latest.date()),
+            min_value=earliest.date(),
+            max_value=latest.date(),
+            key=f"{key}_custom_dates",
+        )
+        if isinstance(custom, tuple) and len(custom) == 2:
+            return pd.Timestamp(custom[0]), pd.Timestamp(custom[1])
+        return default_start, latest
+
+    offsets = {
+        "30D": pd.Timedelta(days=29),
+        "90D": pd.Timedelta(days=89),
+        "6M": pd.DateOffset(months=6),
+        "1Y": pd.DateOffset(years=1),
+    }
+    start = latest - offsets[choice]
+    return max(pd.Timestamp(start).normalize(), earliest), latest
+
+
+def _metric_color(metric: str) -> str:
+    definition = BY_KEY.get(metric)
+    if definition:
+        return definition.color
+    return {
+        "sleep_hours": "#5E5CE6",
+        "workout_minutes": "#64D2FF",
+        "workout_count": "#0A84FF",
+    }.get(metric, "#64D2FF")
+
+
+def _metric_unit(metric: str) -> str:
+    return METRIC_UNITS.get(metric, "")
+
+
+def _format_metric_value(value: float | None, metric: str) -> str:
+    if value is None or pd.isna(value):
+        return "—"
+    if metric in {"steps", "active_energy", "workout_minutes", "workout_count"}:
+        return f"{value:,.0f}"
+    return f"{value:,.1f}"
+
+
+def _format_change(change: float | None) -> str:
+    if change is None or pd.isna(change):
+        return "No comparison"
+    return f"{change:+.1f}%"
+
+
+def _trend_series(values: pd.Series) -> pd.Series:
+    span_days = max((values.index.max() - values.index.min()).days, 1)
+    if span_days > 3 * 365:
+        return values.resample("30D").mean()
+    if span_days > 365:
+        return values.resample("7D").mean()
+    return values.rolling(7, min_periods=2).mean()
+
+
+def _trend_label(values: pd.Series) -> str:
+    span_days = max((values.index.max() - values.index.min()).days, 1)
+    if span_days > 3 * 365:
+        return "Monthly trend"
+    if span_days > 365:
+        return "Weekly trend"
+    return "7-day trend"
+
+
+def _rgba(hex_color: str, alpha: float) -> str:
+    clean = hex_color.lstrip("#")
+    red, green, blue = (int(clean[index : index + 2], 16) for index in (0, 2, 4))
+    return f"rgba({red},{green},{blue},{alpha})"
 
 
 def _has_data(connection: duckdb.DuckDBPyConnection) -> bool:
@@ -1016,6 +1280,22 @@ def _style() -> None:
         .period-strip span { padding:.55rem .8rem; border-radius:999px; color:#8e8e93;
           border:1px solid #2c2c2e; background:#111113; font-size:.76rem; }
         .period-strip b { color:#f5f5f7; }
+        .chart-heading { display:flex; align-items:baseline; gap:.75rem; padding:.35rem .45rem 0; }
+        .chart-heading small { color:#636366; font-size:.64rem; font-weight:750;
+          letter-spacing:.14em; }
+        .chart-heading strong { color:#f5f5f7; font-size:1.1rem; }
+        .chart-heading span { color:#636366; font-size:.72rem; margin-left:auto; }
+        .range-card { min-height:128px; padding:1.05rem 1.15rem; border:1px solid #2c2c2e;
+          border-radius:22px; background:linear-gradient(145deg,#171719,#0d0d0f);
+          position:relative; overflow:hidden; }
+        .range-card::after { content:""; position:absolute; width:78px; height:78px; right:-32px;
+          top:-30px; border-radius:50%; background:var(--metric,#36363a);
+          filter:blur(34px); opacity:.28; }
+        .range-card small { color:#77777d; font-size:.64rem; font-weight:750;
+          letter-spacing:.13em; }
+        .range-card strong { display:block; color:#f5f5f7; font-size:1.75rem;
+          letter-spacing:-.05em; margin:.7rem 0 .2rem; line-height:1; }
+        .range-card span { color:#77777d; font-size:.7rem; }
         .disclaimer { color:#48484a; text-align:center; font-size:.72rem; margin-top:3.5rem; }
         .stButton > button, .stDownloadButton > button { border-radius:999px; }
         [data-testid="stFileUploaderDropzone"] { border-radius:20px; background:#101012; }
