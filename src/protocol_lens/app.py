@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import os
+import re
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,6 +46,7 @@ from protocol_lens.spreadsheet import (
     read_spreadsheet,
     spreadsheet_records,
 )
+from protocol_lens.workouts import public_workout_snapshot
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data" / "processed"
@@ -518,6 +520,138 @@ def _workout_view(
     start: pd.Timestamp,
     end: pd.Timestamp,
 ) -> None:
+    snapshot = public_workout_snapshot(connection)
+    overview = snapshot["overview"]
+    if not overview["workout_count"]:
+        st.info("No Apple workouts have been imported yet.")
+        return
+
+    st.markdown(
+        '<div class="workout-banner"><small>TRAINING HISTORY</small>'
+        "<strong>Consistency, volume, and movement across time.</strong>"
+        "<span>Only aggregate results leave this Mac; individual sessions stay local.</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    cards = [
+        ("RECORDED WORKOUTS", f"{overview['workout_count']:,}", "Apple workout events"),
+        (
+            "TRAINING TIME",
+            _duration_label(float(overview["total_minutes"])),
+            "Across the complete record",
+        ),
+        (
+            "ACTIVE WEEKS",
+            f"{overview['active_weeks']:,}",
+            "Weeks with ≥1 recorded workout",
+        ),
+        (
+            "LONGEST RUN",
+            f"{overview['longest_consistency_streak_weeks']} weeks",
+            "Consecutive active weeks",
+        ),
+    ]
+    card_columns = st.columns(4)
+    for column, (label, value, detail) in zip(card_columns, cards, strict=True):
+        with column:
+            st.markdown(
+                '<div class="workout-card">'
+                f"<small>{html.escape(label)}</small><strong>{html.escape(value)}</strong>"
+                f"<span>{html.escape(detail)}</span></div>",
+                unsafe_allow_html=True,
+            )
+
+    monthly = pd.DataFrame(snapshot["monthly"])
+    monthly["date"] = pd.to_datetime(monthly["month"])
+    visible_monthly = monthly[
+        (monthly["date"] >= start.to_period("M").to_timestamp())
+        & (monthly["date"] <= end.to_period("M").to_timestamp())
+    ]
+    if visible_monthly.empty:
+        visible_monthly = monthly
+
+    activity_types = pd.DataFrame(snapshot["activity_types"])
+    activity_types["display_name"] = activity_types["activity_type"].map(_workout_label)
+    history_column, mix_column = st.columns([1.6, 1])
+    with history_column:
+        st.markdown("#### Training rhythm")
+        history_figure = go.Figure()
+        history_figure.add_trace(
+            go.Bar(
+                x=visible_monthly["date"],
+                y=visible_monthly["workout_count"],
+                name="Workouts",
+                marker={
+                    "color": visible_monthly["workout_count"],
+                    "colorscale": [[0, "#17233a"], [1, "#0A84FF"]],
+                    "line": {"width": 0},
+                },
+                hovertemplate="%{x|%b %Y}<br>%{y:.0f} workouts<extra></extra>",
+            )
+        )
+        history_figure.add_trace(
+            go.Scatter(
+                x=visible_monthly["date"],
+                y=visible_monthly["workout_count"].rolling(3, min_periods=1).mean(),
+                name="3-month rhythm",
+                mode="lines",
+                line={"color": "#64D2FF", "width": 2.5, "shape": "spline"},
+                hovertemplate="%{x|%b %Y}<br>%{y:.1f} average<extra></extra>",
+            )
+        )
+        st.plotly_chart(
+            _chart_layout(history_figure, 390),
+            width="stretch",
+            config={"displayModeBar": False, "scrollZoom": True},
+        )
+
+    with mix_column:
+        st.markdown("#### What the Watch recorded")
+        top_types = activity_types.head(8).sort_values("workout_count")
+        type_figure = go.Figure(
+            go.Bar(
+                x=top_types["workout_count"],
+                y=top_types["display_name"],
+                orientation="h",
+                marker={
+                    "color": top_types["workout_count"],
+                    "colorscale": [[0, "#1c1c34"], [1, "#5E5CE6"]],
+                    "line": {"width": 0},
+                },
+                hovertemplate="%{y}<br>%{x:.0f} workouts<extra></extra>",
+            )
+        )
+        type_figure.update_layout(showlegend=False)
+        st.plotly_chart(
+            _chart_layout(type_figure, 390),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+
+    yearly = pd.DataFrame(snapshot["by_year"])
+    if not yearly.empty:
+        st.markdown("#### Year by year")
+        year_columns = st.columns(min(len(yearly), 6))
+        for column, row in zip(year_columns, yearly.tail(6).itertuples(), strict=False):
+            with column:
+                st.markdown(
+                    '<div class="year-chip">'
+                    f"<small>{int(row.year)}</small><strong>{int(row.workout_count)}</strong>"
+                    f"<span>{int(row.active_weeks)} active weeks</span></div>",
+                    unsafe_allow_html=True,
+                )
+
+    comparison = workout_comparison(frame.loc[start:end], "resting_heart_rate")
+    if comparison:
+        workout, rest, workout_n, rest_n = comparison
+        st.markdown(
+            '<div class="workout-insight"><small>APPLE SIGNAL CONTEXT</small>'
+            f"<strong>{workout:.1f} vs {rest:.1f} bpm</strong>"
+            f"<span>Average resting heart rate on {workout_n} recorded workout days "
+            f"and {rest_n} other observed days in the visible window.</span></div>",
+            unsafe_allow_html=True,
+        )
+
     workout_frame = connection.execute(
         """
         SELECT start_at, activity_type, duration_minutes, energy_kcal, distance_km
@@ -528,28 +662,21 @@ def _workout_view(
         """,
         [start.date(), end.date()],
     ).df()
-    if workout_frame.empty:
-        st.info("No Apple workouts have been imported yet.")
-        return
-    comparison = workout_comparison(frame, "resting_heart_rate")
-    if comparison:
-        workout, rest, workout_n, rest_n = comparison
-        first, second = st.columns(2)
-        first.metric("Workout-day resting HR", f"{workout:.1f} bpm", f"{workout_n} days")
-        second.metric("Other-day resting HR", f"{rest:.1f} bpm", f"{rest_n} days")
-    st.dataframe(
-        workout_frame.rename(
-            columns={
-                "start_at": "Date",
-                "activity_type": "Workout",
-                "duration_minutes": "Minutes",
-                "energy_kcal": "Energy (kcal)",
-                "distance_km": "Distance (km)",
-            }
-        ),
-        width="stretch",
-        hide_index=True,
-    )
+    if not workout_frame.empty:
+        with st.expander("Inspect individual sessions on this Mac"):
+            st.dataframe(
+                workout_frame.rename(
+                    columns={
+                        "start_at": "Date",
+                        "activity_type": "Workout",
+                        "duration_minutes": "Minutes",
+                        "energy_kcal": "Energy (kcal)",
+                        "distance_km": "Distance (km)",
+                    }
+                ),
+                width="stretch",
+                hide_index=True,
+            )
 
 
 def _source_view(connection: duckdb.DuckDBPyConnection, demo: bool) -> None:
@@ -1266,6 +1393,17 @@ def _format_change(change: float | None) -> str:
     return f"{change:+.1f}%"
 
 
+def _duration_label(minutes: float) -> str:
+    hours = minutes / 60
+    if hours >= 1000:
+        return f"{hours / 1000:.1f}k hr"
+    return f"{hours:,.0f} hr"
+
+
+def _workout_label(value: str) -> str:
+    return re.sub(r"(?<!^)(?=[A-Z])", " ", value).strip()
+
+
 def _trend_series(values: pd.Series) -> pd.Series:
     span_days = max((values.index.max() - values.index.min()).days, 1)
     if span_days > 3 * 365:
@@ -1402,6 +1540,37 @@ def _style() -> None:
         .period-strip span { padding:.55rem .8rem; border-radius:999px; color:#8e8e93;
           border:1px solid #2c2c2e; background:#111113; font-size:.76rem; }
         .period-strip b { color:#f5f5f7; }
+        .workout-banner { margin:.2rem 0 1.3rem; padding:1.35rem 1.5rem;
+          border-radius:24px; border:1px solid rgba(10,132,255,.38);
+          background:linear-gradient(135deg,rgba(10,132,255,.18),rgba(94,92,230,.05));
+          box-shadow:0 20px 70px rgba(10,132,255,.09); }
+        .workout-banner small { display:block; color:#64d2ff; font-weight:750;
+          letter-spacing:.16em; margin-bottom:.65rem; }
+        .workout-banner strong { display:block; color:#f5f5f7; font-size:1.35rem;
+          letter-spacing:-.025em; }
+        .workout-banner span { display:block; color:#98989d; margin-top:.35rem; }
+        .workout-card { min-height:128px; padding:1.05rem 1.15rem; border-radius:22px;
+          border:1px solid rgba(10,132,255,.22);
+          background:linear-gradient(145deg,rgba(23,31,48,.92),#0d0d0f); }
+        .workout-card small { color:#64d2ff; font-size:.63rem; font-weight:750;
+          letter-spacing:.13em; }
+        .workout-card strong { display:block; color:#f5f5f7; font-size:1.7rem;
+          letter-spacing:-.05em; margin:.75rem 0 .25rem; line-height:1; }
+        .workout-card span { color:#77777d; font-size:.7rem; }
+        .year-chip { padding:.9rem 1rem; border-radius:20px; background:#111113;
+          border:1px solid #2c2c2e; }
+        .year-chip small { color:#64d2ff; font-weight:750; letter-spacing:.09em; }
+        .year-chip strong { display:block; color:#f5f5f7; font-size:1.65rem;
+          letter-spacing:-.05em; margin:.45rem 0 .15rem; }
+        .year-chip span { color:#77777d; font-size:.68rem; }
+        .workout-insight { display:grid; grid-template-columns:auto auto 1fr;
+          align-items:center; gap:1rem; margin:1.2rem 0; padding:1rem 1.15rem;
+          border-radius:20px; border:1px solid rgba(100,210,255,.22);
+          background:rgba(100,210,255,.055); }
+        .workout-insight small { color:#64d2ff; font-size:.63rem; font-weight:750;
+          letter-spacing:.13em; }
+        .workout-insight strong { color:#f5f5f7; font-size:1.3rem; }
+        .workout-insight span { color:#8e8e93; font-size:.78rem; }
         .chart-heading { display:flex; align-items:baseline; gap:.75rem; padding:.35rem .45rem 0; }
         .chart-heading small { color:#636366; font-size:.64rem; font-weight:750;
           letter-spacing:.14em; }
@@ -1426,6 +1595,7 @@ def _style() -> None:
           h1 { font-size:3.8rem !important; }
           .metric-card { min-height:140px; padding:1rem; }
           .metric-card strong { font-size:2.15rem; margin-top:1.4rem; }
+          .workout-insight { grid-template-columns:1fr; gap:.35rem; }
         }
         </style>
         """,
