@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import os
 import tempfile
 from datetime import UTC, datetime
@@ -24,11 +25,14 @@ from protocol_lens.experiments import (
     analyze_compound_periods,
     import_compound_periods,
     list_compound_periods,
+    list_intervention_profiles,
     public_snapshot_csv,
     public_snapshot_json,
+    save_intervention_profile,
 )
 from protocol_lens.sample import build_sample_database
 from protocol_lens.spreadsheet import (
+    canonical_metric,
     fetch_google_sheet,
     metric_label,
     read_spreadsheet,
@@ -451,6 +455,219 @@ def _compound_view(connection: duckdb.DuckDBPyConnection) -> None:
         "original colors.</span></div>",
         unsafe_allow_html=True,
     )
+    _intervention_explorer(connection)
+
+    st.markdown("#### Build your Personal Lab")
+    profile_tab, period_tab = st.tabs(["Describe a supplement", "Record a usage period"])
+    with profile_tab:
+        _profile_form(connection)
+    with period_tab:
+        _period_form(connection)
+
+
+def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
+    profiles = list_intervention_profiles(connection)
+    periods = list_compound_periods(connection)
+    profile_names = profiles["display_name"].tolist() if not profiles.empty else []
+    period_names = periods["display_name"].tolist() if not periods.empty else []
+    names = sorted(set(profile_names + period_names), key=str.casefold)
+    if not names:
+        st.markdown(
+            '<div class="personal-empty"><strong>Your supplement pages will live here.</strong>'
+            "<span>Add a description and one or more usage periods. Apple outcomes appear "
+            "automatically when dates overlap.</span></div>",
+            unsafe_allow_html=True,
+        )
+        return
+
+    selected_name = st.selectbox(
+        "Choose a supplement or intervention",
+        names,
+        key="personal_lab_selection",
+    )
+    selected_key = canonical_metric(selected_name)
+    profile_rows = (
+        profiles[profiles["intervention_key"] == selected_key]
+        if not profiles.empty
+        else pd.DataFrame()
+    )
+    selected_periods = (
+        periods[periods["compound_key"] == selected_key]
+        if not periods.empty
+        else pd.DataFrame()
+    )
+    profile = profile_rows.iloc[0] if not profile_rows.empty else None
+    color = str(profile["color"]) if profile is not None else "#BF5AF2"
+
+    description_column, context_column = st.columns([1.4, 1])
+    with description_column:
+        description = (
+            str(profile["description"]).strip()
+            if profile is not None and not pd.isna(profile["description"])
+            else ""
+        )
+        st.markdown(
+            '<div class="profile-card" style="--profile-color:'
+            f'{html.escape(color)}"><small>PROFILE</small>'
+            f"<h3>{html.escape(selected_name)}</h3>"
+            f"<p>{html.escape(description or 'Description not added yet.')}</p></div>",
+            unsafe_allow_html=True,
+        )
+    with context_column:
+        expected = (
+            str(profile["expected_outcomes"]).strip()
+            if profile is not None and not pd.isna(profile["expected_outcomes"])
+            else ""
+        )
+        goal = (
+            str(profile["personal_goal"]).strip()
+            if profile is not None and not pd.isna(profile["personal_goal"])
+            else ""
+        )
+        st.markdown(
+            '<div class="expectation-card"><small>EXPECTED</small>'
+            f"<p>{html.escape(expected or 'Not recorded yet.')}</p>"
+            "<small>WHY IT WAS TRACKED</small>"
+            f"<p>{html.escape(goal or 'Not recorded yet.')}</p></div>",
+            unsafe_allow_html=True,
+        )
+
+    analysis = analyze_compound_periods(connection)
+    selected_analysis = (
+        analysis[analysis["compound"].map(canonical_metric) == selected_key]
+        if not analysis.empty
+        else pd.DataFrame()
+    )
+    if selected_periods.empty:
+        st.caption("Add a usage period to connect this profile with Apple metrics.")
+        return
+
+    period_count = len(selected_periods)
+    earliest = pd.to_datetime(selected_periods["start_date"]).min().date()
+    end_values = pd.to_datetime(selected_periods["end_date"], errors="coerce")
+    latest = end_values.max().date() if end_values.notna().any() else "ongoing"
+    st.markdown(
+        '<div class="period-strip">'
+        f"<span><b>{period_count}</b> recorded period{'s' if period_count != 1 else ''}</span>"
+        f"<span>First: <b>{earliest}</b></span><span>Latest end: <b>{latest}</b></span></div>",
+        unsafe_allow_html=True,
+    )
+
+    if selected_analysis.empty:
+        st.info("Apple data does not yet overlap these periods.")
+        return
+
+    metric_keys = selected_analysis["metric"].drop_duplicates().tolist()
+    chosen_metric = st.selectbox(
+        "Apple metric",
+        metric_keys,
+        format_func=metric_label,
+        key=f"metric_{selected_key}",
+    )
+    metric_results = selected_analysis[selected_analysis["metric"] == chosen_metric].copy()
+    frame = daily_metrics(connection)
+    if chosen_metric in frame and frame[chosen_metric].notna().any():
+        st.plotly_chart(
+            _intervention_metric_figure(
+                frame,
+                chosen_metric,
+                selected_periods,
+                color,
+                selected_name,
+            ),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+
+    st.markdown("##### What was observed")
+    display_results = metric_results[
+        [
+            "start_date",
+            "end_date",
+            "relative_change_percent",
+            "direction",
+            "baseline_days",
+            "during_days",
+            "analysis_confidence",
+        ]
+    ].rename(
+        columns={
+            "start_date": "Period start",
+            "end_date": "Period end",
+            "relative_change_percent": "Change %",
+            "direction": "Observed direction",
+            "baseline_days": "Before days",
+            "during_days": "During days",
+            "analysis_confidence": "Confidence",
+        }
+    )
+    display_results["Observed direction"] = display_results["Observed direction"].map(
+        lambda value: str(value).replace("_", " ").title()
+    )
+    st.dataframe(
+        display_results,
+        width="stretch",
+        hide_index=True,
+        column_config={"Change %": st.column_config.NumberColumn(format="%.1f%%")},
+    )
+    st.caption(
+        "Observed changes describe these windows only. They do not show that the intervention "
+        "caused the metric to change."
+    )
+
+
+def _profile_form(connection: duckdb.DuckDBPyConnection) -> None:
+    with st.form("intervention_profile_form", clear_on_submit=True):
+        name_column, category_column, color_column = st.columns([1.4, 1, 0.7])
+        with name_column:
+            profile_name = st.text_input(
+                "Supplement or intervention",
+                placeholder="L-theanine",
+            )
+        with category_column:
+            profile_category = st.selectbox(
+                "Category",
+                ["supplement", "nootropic", "nutrition", "other"],
+                format_func=lambda value: value.title(),
+            )
+        with color_column:
+            profile_color = st.color_picker("Timeline color", "#BF5AF2")
+        description = st.text_area(
+            "What is it?",
+            placeholder="A short neutral description of the supplement.",
+        )
+        expected = st.text_area(
+            "What was expected?",
+            placeholder="The outcomes or metrics that were expected to change.",
+        )
+        personal_goal = st.text_area(
+            "Why was it tracked?",
+            placeholder="The personal reason for trying or monitoring it.",
+        )
+        profile_confidence = st.selectbox(
+            "Description confidence",
+            ["confirmed", "approximate", "unverified"],
+        )
+        profile_submitted = st.form_submit_button("Save profile", type="primary")
+        if profile_submitted:
+            try:
+                save_intervention_profile(
+                    connection,
+                    display_name=profile_name,
+                    category=profile_category,
+                    description=description,
+                    expected_outcomes=expected,
+                    personal_goal=personal_goal,
+                    color=profile_color,
+                    confidence=profile_confidence,
+                )
+                st.success("Profile saved locally.")
+                st.rerun()
+            except (ValueError, duckdb.Error) as error:
+                st.error(str(error))
+
+
+def _period_form(connection: duckdb.DuckDBPyConnection) -> None:
     st.markdown("#### Record an intervention period")
     st.caption(
         "Add supplements, nootropics, nutrition interventions, or another personal routine. "
@@ -661,6 +878,44 @@ def _compound_view(connection: duckdb.DuckDBPyConnection) -> None:
         )
 
 
+def _intervention_metric_figure(
+    frame: pd.DataFrame,
+    metric: str,
+    periods: pd.DataFrame,
+    color: str,
+    intervention_name: str,
+) -> go.Figure:
+    values = frame[metric].dropna()
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=values.index,
+            y=values.values,
+            name=metric_label(metric),
+            mode="lines",
+            line={"color": "#64D2FF", "width": 2},
+            hovertemplate="%{x|%d %b %Y}<br>%{y:.2f}<extra></extra>",
+        )
+    )
+    for row in periods.itertuples(index=False):
+        period_end = row.end_date if not pd.isna(row.end_date) else values.index.max()
+        figure.add_vrect(
+            x0=row.start_date,
+            x1=period_end,
+            fillcolor=color,
+            opacity=0.16,
+            line_width=1,
+            line_color=color,
+            annotation_text=intervention_name,
+            annotation_position="top left",
+        )
+    figure.update_layout(
+        title=f"{metric_label(metric)} across recorded periods",
+        yaxis_title=metric_label(metric),
+    )
+    return _chart_layout(figure, 420)
+
+
 def _has_data(connection: duckdb.DuckDBPyConnection) -> bool:
     counts = connection.execute(
         """
@@ -742,6 +997,25 @@ def _style() -> None:
         .personal-lab-banner strong { display:block; color:#f5f5f7; font-size:1.35rem;
           letter-spacing:-.025em; }
         .personal-lab-banner span { display:block; color:#98989d; margin-top:.35rem; }
+        .personal-empty { margin:0 0 1.7rem; padding:1.4rem 1.5rem; border-radius:22px;
+          border:1px dashed rgba(191,90,242,.35); background:rgba(191,90,242,.04); }
+        .personal-empty strong { display:block; color:#f5f5f7; font-size:1.05rem; }
+        .personal-empty span { display:block; color:#8e8e93; margin-top:.35rem; }
+        .profile-card, .expectation-card { min-height:210px; padding:1.35rem 1.45rem;
+          border-radius:24px; border:1px solid #2c2c2e; background:#111113; }
+        .profile-card { position:relative; overflow:hidden; }
+        .profile-card::after { content:""; position:absolute; width:160px; height:160px;
+          right:-70px; top:-75px; border-radius:50%; background:var(--profile-color);
+          filter:blur(55px); opacity:.24; }
+        .profile-card small, .expectation-card small { color:#8e8e93; font-size:.67rem;
+          font-weight:750; letter-spacing:.15em; }
+        .profile-card h3 { margin:.7rem 0 !important; font-size:2rem; color:#f5f5f7; }
+        .profile-card p, .expectation-card p { color:#a1a1a6; line-height:1.5; }
+        .expectation-card p { margin:.35rem 0 1.25rem; }
+        .period-strip { display:flex; flex-wrap:wrap; gap:.65rem; margin:1rem 0 1.2rem; }
+        .period-strip span { padding:.55rem .8rem; border-radius:999px; color:#8e8e93;
+          border:1px solid #2c2c2e; background:#111113; font-size:.76rem; }
+        .period-strip b { color:#f5f5f7; }
         .disclaimer { color:#48484a; text-align:center; font-size:.72rem; margin-top:3.5rem; }
         .stButton > button, .stDownloadButton > button { border-radius:999px; }
         [data-testid="stFileUploaderDropzone"] { border-radius:20px; background:#101012; }

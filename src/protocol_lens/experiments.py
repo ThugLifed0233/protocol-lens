@@ -197,7 +197,7 @@ def add_compound_period(
 def list_compound_periods(connection: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     return connection.execute(
         """
-        SELECT period_id, display_name, category, start_date, end_date, dose_note,
+        SELECT period_id, compound_key, display_name, category, start_date, end_date, dose_note,
                purpose, confidence, visibility, notes
         FROM compound_periods
         ORDER BY start_date DESC, display_name
