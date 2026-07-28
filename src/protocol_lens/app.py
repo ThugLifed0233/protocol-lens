@@ -15,11 +15,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from protocol_lens import __version__
 from protocol_lens.analysis import (
     correlations,
     daily_metrics,
+    metric_window_summary,
     workout_comparison,
 )
 from protocol_lens.apple_health import iter_export
@@ -272,9 +274,8 @@ def _dashboard(
         st.info("Add data to begin.")
         return
 
-    _metric_cards(frame)
-    st.markdown('<div class="section-kicker space-top">EXPLORE</div>', unsafe_allow_html=True)
-    st.subheader("Mix any available metrics")
+    st.markdown('<div class="section-kicker space-top">YOUR TIMELINE</div>', unsafe_allow_html=True)
+    st.subheader("See the signal. Change the scale.")
     available = [column for column in frame.columns if frame[column].notna().any()]
     default = [
         metric
@@ -290,27 +291,40 @@ def _dashboard(
         label_visibility="collapsed",
     )
 
-    timeline, relationship_tab, workouts_tab, personal_lab_tab, sources_tab = st.tabs(
-        ["Timeline", "Relationships", "Workouts", "Personal Lab", "Sources"]
+    range_start, range_end = _date_window_controls(
+        frame,
+        key="main_timeline",
+        default="1Y",
     )
-    with timeline:
-        if selected:
-            st.plotly_chart(
-                _timeline_figure(frame, selected),
-                width="stretch",
-                config={"displayModeBar": False},
+    visible_frame = frame.loc[range_start:range_end]
+
+    if selected:
+        with st.container(border=True):
+            st.markdown(
+                '<div class="chart-heading"><small>VISIBLE WINDOW</small>'
+                f"<strong>{range_start:%d %b %Y} — {range_end:%d %b %Y}</strong>"
+                "<span>Drag to inspect · scroll to zoom</span></div>",
+                unsafe_allow_html=True,
             )
-        else:
-            st.caption("Choose at least one metric.")
+            st.plotly_chart(
+                _timeline_figure(visible_frame, selected),
+                width="stretch",
+                config={"displayModeBar": False, "scrollZoom": True},
+            )
+        _metric_cards(frame, selected, range_start, range_end)
+    else:
+        st.caption("Choose at least one metric.")
 
-    with relationship_tab:
-        _relationship_view(frame)
-
-    with workouts_tab:
-        _workout_view(connection, frame)
-
+    personal_lab_tab, relationship_tab, workouts_tab, sources_tab = st.tabs(
+        ["Personal Lab", "Relationships", "Workouts", "Sources"]
+    )
     with personal_lab_tab:
         _compound_view(personal_connection)
+    with relationship_tab:
+        _relationship_view(visible_frame)
+
+    with workouts_tab:
+        _workout_view(connection, visible_frame, range_start, range_end)
 
     with sources_tab:
         _source_view(connection, demo)
@@ -322,60 +336,147 @@ def _dashboard(
     )
 
 
-def _metric_cards(frame: pd.DataFrame) -> None:
-    definitions = [
-        ("resting_heart_rate", "RESTING HR", "bpm", "#ff453a"),
-        ("hrv_sdnn", "HRV", "ms", "#bf5af2"),
-        ("sleep_hours", "SLEEP", "hours", "#5e5ce6"),
-        ("steps", "STEPS", "", "#30d158"),
+def _metric_cards(
+    frame: pd.DataFrame,
+    selected: list[str],
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+) -> None:
+    days = max((end - start).days + 1, 1)
+    visible = frame.loc[start:end]
+    workout_series = visible.get("workout_count", pd.Series(dtype=float))
+    workout_days = int((workout_series.fillna(0) > 0).sum())
+    cards = [
+        (
+            "VISIBLE WINDOW",
+            f"{days:,} days",
+            f"{workout_days} workout days",
+            "#30D158",
+        )
     ]
-    columns = st.columns(4)
-    for column, (metric, title, unit, color) in zip(columns, definitions, strict=True):
-        values = frame[metric].dropna() if metric in frame else pd.Series(dtype=float)
+    for metric in selected:
+        summary = metric_window_summary(frame, metric, start, end)
+        if summary is None:
+            cards.append(
+                (
+                    metric_label(metric).upper(),
+                    "—",
+                    "No values in view",
+                    _metric_color(metric),
+                )
+            )
+            continue
+        detail = f"{summary.observations} days · {summary.coverage * 100:.0f}% coverage"
+        if summary.change_percent is not None and summary.coverage >= 0.35:
+            detail = f"{_format_change(summary.change_percent)} vs prior window"
+        unit = _metric_unit(metric)
+        cards.append(
+            (
+                metric_label(metric).upper(),
+                _format_metric_value(summary.mean, metric),
+                f"{unit} · {detail}" if unit else detail,
+                _metric_color(metric),
+            )
+        )
+
+    columns = st.columns(len(cards))
+    for column, (label, value, detail, color) in zip(columns, cards, strict=True):
         with column:
-            if values.empty:
-                st.markdown(
-                    f'<div class="metric-card"><small>{title}</small>'
-                    '<strong class="empty">—</strong><span>No data yet</span></div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                latest = float(values.iloc[-1])
-                value = f"{latest:,.0f}" if metric == "steps" else f"{latest:.1f}"
-                st.markdown(
-                    f'<div class="metric-card" style="--metric:{color}"><small>{title}</small>'
-                    f"<strong>{value}</strong><span>{unit} · latest available</span></div>",
-                    unsafe_allow_html=True,
-                )
+            st.markdown(
+                f'<div class="range-card" style="--metric:{html.escape(color)}">'
+                f"<small>{html.escape(label)}</small><strong>{html.escape(value)}</strong>"
+                f"<span>{html.escape(detail)}</span></div>",
+                unsafe_allow_html=True,
+            )
 
 
 def _timeline_figure(frame: pd.DataFrame, selected: list[str]) -> go.Figure:
-    palette = ["#ff453a", "#64d2ff", "#bf5af2"]
-    figure = go.Figure()
-    for index, metric in enumerate(selected):
+    has_workouts = bool(
+        "workout_count" in frame and (frame["workout_count"].fillna(0) > 0).any()
+    )
+    metric_rows = len(selected)
+    total_rows = metric_rows + (1 if has_workouts else 0)
+    titles = [metric_label(metric) for metric in selected]
+    if has_workouts:
+        titles.append("Apple workouts")
+    row_heights = [1.0] * metric_rows + ([0.18] if has_workouts else [])
+    figure = make_subplots(
+        rows=total_rows,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.065,
+        subplot_titles=titles,
+        row_heights=row_heights,
+    )
+
+    for row, metric in enumerate(selected, start=1):
+        values = frame[metric].dropna()
+        if values.empty:
+            continue
+        color = _metric_color(metric)
+        trend = _trend_series(values)
         figure.add_trace(
             go.Scatter(
-                x=frame.index,
-                y=frame[metric],
-                name=metric_label(metric),
+                x=values.index,
+                y=values.values,
+                name="Daily values",
                 mode="lines",
                 connectgaps=False,
-                line={"color": palette[index], "width": 2.6, "shape": "spline"},
-            )
+                line={"color": _rgba(color, 0.18), "width": 1},
+                showlegend=row == 1,
+                hovertemplate="%{x|%d %b %Y}<br>%{y:.2f}<extra></extra>",
+            ),
+            row=row,
+            col=1,
         )
-    workout_days = frame[frame.get("workout_count", pd.Series(index=frame.index)).fillna(0) > 0]
-    if not workout_days.empty and selected:
-        anchor = frame[selected[0]].reindex(workout_days.index)
+        figure.add_trace(
+            go.Scatter(
+                x=trend.index,
+                y=trend.values,
+                name=_trend_label(values),
+                mode="lines",
+                connectgaps=False,
+                line={"color": color, "width": 2.8, "shape": "spline"},
+                showlegend=row == 1,
+                hovertemplate="%{x|%d %b %Y}<br>%{y:.2f}<extra></extra>",
+            ),
+            row=row,
+            col=1,
+        )
+        figure.update_yaxes(
+            title_text=_metric_unit(metric),
+            row=row,
+            col=1,
+            title_font={"size": 10, "color": "#636366"},
+        )
+
+    if has_workouts:
+        workout_days = frame[frame["workout_count"].fillna(0) > 0]
         figure.add_trace(
             go.Scatter(
                 x=workout_days.index,
-                y=anchor,
-                name="Apple workout",
+                y=[0] * len(workout_days),
+                name="Workout day",
                 mode="markers",
-                marker={"symbol": "diamond", "size": 8, "color": "#0a84ff"},
-            )
+                marker={
+                    "symbol": "square",
+                    "size": 5,
+                    "color": "#0A84FF",
+                    "opacity": 0.62,
+                },
+                showlegend=False,
+                hovertemplate="%{x|%d %b %Y}<br>Workout day<extra></extra>",
+            ),
+            row=total_rows,
+            col=1,
         )
-    return _chart_layout(figure, 470)
+        figure.update_yaxes(visible=False, row=total_rows, col=1, range=[-1, 1])
+
+    figure.update_layout(dragmode="zoom", showlegend=True)
+    for annotation in figure.layout.annotations:
+        annotation.update(font={"size": 12, "color": "#A1A1A6"}, x=0, xanchor="left")
+    height = 170 * metric_rows + (65 if has_workouts else 0) + 80
+    return _chart_layout(figure, max(height, 470))
 
 
 def _relationship_view(frame: pd.DataFrame) -> None:
@@ -411,12 +512,21 @@ def _relationship_view(frame: pd.DataFrame) -> None:
     )
 
 
-def _workout_view(connection: duckdb.DuckDBPyConnection, frame: pd.DataFrame) -> None:
+def _workout_view(
+    connection: duckdb.DuckDBPyConnection,
+    frame: pd.DataFrame,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+) -> None:
     workout_frame = connection.execute(
         """
         SELECT start_at, activity_type, duration_minutes, energy_kcal, distance_km
-        FROM workouts ORDER BY start_at DESC LIMIT 100
-        """
+        FROM workouts
+        WHERE CAST(start_at AS DATE) BETWEEN ? AND ?
+        ORDER BY start_at DESC
+        LIMIT 100
+        """,
+        [start.date(), end.date()],
     ).df()
     if workout_frame.empty:
         st.info("No Apple workouts have been imported yet.")
@@ -567,12 +677,12 @@ def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
     frame = daily_metrics(connection)
     period_starts = pd.to_datetime(focus_periods["start_date"])
     period_ends = pd.to_datetime(focus_periods["end_date"], errors="coerce")
-    focus_start = period_starts.min() - pd.Timedelta(days=14)
+    focus_start = period_starts.min() - pd.DateOffset(days=14)
     focus_end = (
         period_ends.max()
         if period_ends.notna().any()
         else pd.Timestamp(frame.index.max())
-    ) + pd.Timedelta(days=14)
+    ) + pd.DateOffset(days=14)
     range_start, range_end = _date_window_controls(
         frame,
         key=f"supplement_{selected_key}",
@@ -1118,8 +1228,8 @@ def _date_window_controls(
         return default_start, latest
 
     offsets = {
-        "30D": pd.Timedelta(days=29),
-        "90D": pd.Timedelta(days=89),
+        "30D": pd.DateOffset(days=29),
+        "90D": pd.DateOffset(days=89),
         "6M": pd.DateOffset(months=6),
         "1Y": pd.DateOffset(years=1),
     }
@@ -1195,14 +1305,26 @@ def _has_data(connection: duckdb.DuckDBPyConnection) -> bool:
 def _chart_layout(figure: go.Figure, height: int) -> go.Figure:
     figure.update_layout(
         height=height,
-        margin={"l": 20, "r": 20, "t": 28, "b": 20},
+        margin={"l": 26, "r": 18, "t": 42, "b": 20},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font={"family": "-apple-system, BlinkMacSystemFont, Inter", "color": "#a1a1a6"},
-        legend={"orientation": "h", "y": 1.08},
+        legend={"orientation": "h", "y": 1.07, "x": 1, "xanchor": "right"},
         hovermode="x unified",
-        xaxis={"gridcolor": "rgba(255,255,255,.06)", "zeroline": False},
-        yaxis={"gridcolor": "rgba(255,255,255,.06)", "zeroline": False},
+        hoverlabel={"bgcolor": "#1C1C1E", "bordercolor": "#3A3A3C"},
+    )
+    figure.update_xaxes(
+        gridcolor="rgba(255,255,255,.045)",
+        zeroline=False,
+        showline=False,
+        tickfont={"color": "#636366", "size": 10},
+        rangeslider_visible=False,
+    )
+    figure.update_yaxes(
+        gridcolor="rgba(255,255,255,.055)",
+        zeroline=False,
+        showline=False,
+        tickfont={"color": "#636366", "size": 10},
     )
     return figure
 
@@ -1216,23 +1338,23 @@ def _style() -> None:
           radial-gradient(circle at 85% -10%, rgba(48,209,88,.08), transparent 28rem),
           radial-gradient(circle at -5% 30%, rgba(10,132,255,.07), transparent 28rem),
           #050506; }
-        .block-container { max-width: 1180px; padding-top: 4.2rem; padding-bottom: 5rem; }
+        .block-container { max-width: 1240px; padding-top: 2.7rem; padding-bottom: 5rem; }
         [data-testid="stHeader"] { display:none; }
-        h1 { font-size: clamp(3.6rem, 7.6vw, 7rem) !important; line-height: .91 !important;
-          letter-spacing: -.065em !important; margin: 1.5rem 0 1.4rem !important; }
+        h1 { font-size: clamp(3.15rem, 5.2vw, 5rem) !important; line-height: .92 !important;
+          letter-spacing: -.06em !important; margin: 1rem 0 .9rem !important; }
         h1 span { color: #6e6e73; }
         h2, h3 { letter-spacing: -.035em !important; }
         .wordmark { color: #30d158; font-size: .72rem; letter-spacing: .16em; font-weight: 700; }
         .wordmark i { display:inline-block; width:8px; height:8px; background:#30d158;
           border-radius:50%; margin-right:8px; box-shadow:0 0 18px #30d158; }
-        .lede { color:#98989d; max-width:720px; font-size:1.24rem; line-height:1.55; }
+        .lede { color:#98989d; max-width:720px; font-size:1.08rem; line-height:1.5; }
         .local-pill { border:1px solid #2c2c2e; color:#8e8e93; border-radius:999px;
           font-size:.76rem; padding:.62rem .82rem; margin:.15rem 0 1rem; text-align:center; }
         .local-pill::first-letter { color:#30d158; }
         .demo-banner { margin:2rem 0 1rem; padding:.9rem 1.1rem; border-radius:14px;
           color:#a1a1a6; background:rgba(10,132,255,.08); border:1px solid rgba(10,132,255,.24); }
         .section-kicker { color:#636366; font-size:.7rem; font-weight:700; letter-spacing:.17em; }
-        .space-top { margin-top:4rem; }
+        .space-top { margin-top:2.1rem; }
         [data-testid="stVerticalBlockBorderWrapper"] { background:linear-gradient(145deg,
           rgba(28,28,30,.95),rgba(11,11,13,.95)); border-color:#2c2c2e !important;
           border-radius:28px !important; padding: .35rem; }

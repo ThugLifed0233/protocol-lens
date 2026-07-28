@@ -140,8 +140,8 @@ def metric_window_summary(
         return None
 
     calendar_days = max((normalized_end - normalized_start).days + 1, 1)
-    previous_end = normalized_start - pd.Timedelta(days=1)
-    previous_start = previous_end - pd.Timedelta(days=calendar_days - 1)
+    previous_end = normalized_start - pd.DateOffset(days=1)
+    previous_start = previous_end - pd.DateOffset(days=calendar_days - 1)
     previous = frame.loc[previous_start:previous_end, metric].dropna()
     current_mean = float(visible.mean())
     previous_mean = float(previous.mean()) if not previous.empty else None
