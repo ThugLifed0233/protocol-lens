@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-28T00:00:00+00:00",
+  "project": "Protocol Lens",
+  "data_sources": [
+    "Synthetic Apple Health-like data",
+    "Synthetic intervention period"
+  ],
+  "sharing": {
+    "contains_raw_health_data": false,
+    "contains_exact_dates": false,
+    "contains_doses_or_notes": false
+  },
+  "limitations": [
+    "Results are descriptive within-person associations.",
+    "They do not establish causation, efficacy, or safety.",
+    "Unmeasured confounders may explain observed changes."
+  ],
+  "results": [
+    {
+      "experiment_id": "experiment-synthetic",
+      "intervention": "Example supplement",
+      "category": "supplement",
+      "metric": "sleep_hours",
+      "metric_label": "Sleep",
+      "direction": "higher_during",
+      "relative_change_percent": 3.8,
+      "baseline_days": 14,
+      "during_days": 14,
+      "after_days": 14,
+      "data_coverage": 1.0,
+      "confidence": "moderate",
+      "interpretation": "descriptive_within_person_association"
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Protocol Lens Apple Health report preview</title>
+  <desc id="desc">Dark visual dashboard with Apple Health metric cards, a timeline, and workout markers using synthetic demonstration values.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#08080a"/>
+      <stop offset="1" stop-color="#020203"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a1a1e"/>
+      <stop offset="1" stop-color="#0d0d10"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="720" rx="28" fill="url(#background)"/>
+  <circle cx="1090" cy="42" r="170" fill="#30d158" opacity=".04"/>
+  <circle cx="1015" cy="675" r="220" fill="#0a84ff" opacity=".05"/>
+
+  <text x="72" y="62" fill="#30d158" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" font-size="13" font-weight="700" letter-spacing="2.4">PROTOCOL LENS · APPLE HEALTH</text>
+  <text x="72" y="130" fill="#f5f5f7" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" font-size="56" font-weight="700" letter-spacing="-3">Your health history,</text>
+  <text x="72" y="188" fill="#73737a" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" font-size="56" font-weight="700" letter-spacing="-3">in one lens.</text>
+  <text x="905" y="74" fill="#636366" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" font-size="12">SYNTHETIC DEMO · 120 DAYS</text>
+
+  <g font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif">
+    <rect x="72" y="232" width="247" height="136" rx="24" fill="url(#panel)" stroke="#2c2c2e"/>
+    <text x="96" y="262" fill="#77777d" font-size="11" font-weight="700" letter-spacing="1.5">RESTING HR</text>
+    <text x="96" y="324" fill="#f5f5f7" font-size="42" font-weight="650" letter-spacing="-2">68.4</text>
+    <text x="205" y="324" fill="#77777d" font-size="14">bpm</text>
+    <text x="96" y="348" fill="#30d158" font-size="12">↓ 3.2 from baseline</text>
+
+    <rect x="335" y="232" width="247" height="136" rx="24" fill="url(#panel)" stroke="#2c2c2e"/>
+    <text x="359" y="262" fill="#77777d" font-size="11" font-weight="700" letter-spacing="1.5">HRV</text>
+    <text x="359" y="324" fill="#f5f5f7" font-size="42" font-weight="650" letter-spacing="-2">46.2</text>
+    <text x="461" y="324" fill="#77777d" font-size="14">ms</text>
+    <text x="359" y="348" fill="#bf5af2" font-size="12">28-day trend</text>
+
+    <rect x="598" y="232" width="247" height="136" rx="24" fill="url(#panel)" stroke="#2c2c2e"/>
+    <text x="622" y="262" fill="#77777d" font-size="11" font-weight="700" letter-spacing="1.5">SLEEP</text>
+    <text x="622" y="324" fill="#f5f5f7" font-size="42" font-weight="650" letter-spacing="-2">7.1</text>
+    <text x="682" y="324" fill="#77777d" font-size="14">hours</text>
+    <text x="622" y="348" fill="#5e5ce6" font-size="12">latest available</text>
+
+    <rect x="861" y="232" width="267" height="136" rx="24" fill="url(#panel)" stroke="#2c2c2e"/>
+    <text x="885" y="262" fill="#77777d" font-size="11" font-weight="700" letter-spacing="1.5">STEPS</text>
+    <text x="885" y="324" fill="#f5f5f7" font-size="42" font-weight="650" letter-spacing="-2">8,742</text>
+    <text x="885" y="348" fill="#30d158" font-size="12">Apple activity</text>
+  </g>
+
+  <rect x="72" y="392" width="1056" height="258" rx="28" fill="url(#panel)" stroke="#2c2c2e"/>
+  <text x="100" y="428" fill="#48484a" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" font-size="12">01</text>
+  <text x="144" y="431" fill="#f5f5f7" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" font-size="23" font-weight="650">Long view</text>
+  <text x="1000" y="429" fill="#77777d" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" font-size="12">WORKOUTS ◆</text>
+
+  <g stroke="#2c2c2e" stroke-width="1" opacity=".7">
+    <line x1="104" y1="478" x2="1094" y2="478"/>
+    <line x1="104" y1="526" x2="1094" y2="526"/>
+    <line x1="104" y1="574" x2="1094" y2="574"/>
+    <line x1="104" y1="622" x2="1094" y2="622"/>
+    <line x1="104" y1="462" x2="104" y2="622"/>
+    <line x1="352" y1="462" x2="352" y2="622"/>
+    <line x1="600" y1="462" x2="600" y2="622"/>
+    <line x1="848" y1="462" x2="848" y2="622"/>
+    <line x1="1094" y1="462" x2="1094" y2="622"/>
+  </g>
+
+  <path d="M104 552 C144 545 158 565 198 550 S260 521 306 538 S382 553 422 520 S494 503 538 525 S612 545 654 510 S731 495 773 518 S850 536 891 503 S965 486 1005 506 S1060 515 1094 492"
+        fill="none" stroke="#ff453a" stroke-width="3.2" stroke-linecap="round" filter="url(#glow)"/>
+  <path d="M104 575 C151 558 179 592 224 566 S298 547 344 561 S418 580 462 550 S533 532 579 549 S650 562 698 538 S771 524 815 543 S890 558 934 532 S1030 520 1094 536"
+        fill="none" stroke="#bf5af2" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>
+
+  <g fill="#0a84ff" stroke="#64d2ff" stroke-width="1.5">
+    <path d="M170 592 l7 7 -7 7 -7 -7z"/>
+    <path d="M274 568 l7 7 -7 7 -7 -7z"/>
+    <path d="M414 586 l7 7 -7 7 -7 -7z"/>
+    <path d="M559 554 l7 7 -7 7 -7 -7z"/>
+    <path d="M703 567 l7 7 -7 7 -7 -7z"/>
+    <path d="M855 546 l7 7 -7 7 -7 -7z"/>
+    <path d="M1011 527 l7 7 -7 7 -7 -7z"/>
+  </g>
+
+  <g fill="#636366" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" font-size="11">
+    <text x="104" y="640">JAN</text>
+    <text x="344" y="640">FEB</text>
+    <text x="592" y="640">MAR</text>
+    <text x="840" y="640">APR</text>
+    <text x="1066" y="640">MAY</text>
+  </g>
+
+  <text x="72" y="686" fill="#48484a" font-family="-apple-system,BlinkMacSystemFont,Inter,sans-serif" font-size="11">PERSONAL BY DEFAULT · GENERATED LOCALLY · VALUES SHOWN ARE SYNTHETIC</text>
+</svg>
