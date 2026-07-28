@@ -38,7 +38,7 @@ from protocol_lens.experiments import (
     public_snapshot_json,
     save_intervention_profile,
 )
-from protocol_lens.sample import build_sample_database
+from protocol_lens.sample import build_sample_database, ensure_sample_intervention
 from protocol_lens.spreadsheet import (
     canonical_metric,
     fetch_google_sheet,
@@ -91,6 +91,7 @@ def main() -> None:
     if not has_real_data:
         if not SAMPLE_DB.exists():
             build_sample_database(SAMPLE_DB)
+        ensure_sample_intervention(SAMPLE_DB)
         display_connection = connect(SAMPLE_DB)
         demo = True
 

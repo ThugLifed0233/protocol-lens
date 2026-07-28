@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import math
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 
 from .apple_health import IntervalRecord, SignalRecord, WorkoutRecord
 from .database import connect, ingest_records
+from .experiments import add_compound_period, save_intervention_profile
+from .stories import save_review
 
 
 def build_sample_database(path: Path, days: int = 120) -> None:
@@ -65,6 +67,50 @@ def build_sample_database(path: Path, days: int = 120) -> None:
         source.unlink(missing_ok=True)
 
 
+def ensure_sample_intervention(path: Path) -> None:
+    """Add one idempotent synthetic experiment for the public interface preview."""
+    connection = connect(path)
+    try:
+        save_intervention_profile(
+            connection,
+            display_name="L-theanine",
+            category="nootropic",
+            description="Synthetic demonstration profile.",
+            expected_outcomes="Sleep and recovery context.",
+            personal_goal="Demonstrate the reviewed experiment loop.",
+            visibility="publishable",
+        )
+        existing = connection.execute(
+            """
+            SELECT period_id
+            FROM compound_periods
+            WHERE compound_key = 'l_theanine'
+              AND notes = 'Synthetic demonstration period'
+            """
+        ).fetchone()
+        if existing:
+            return
+        period_id = add_compound_period(
+            connection,
+            display_name="L-theanine",
+            category="nootropic",
+            start_date=date(2026, 2, 16),
+            end_date=date(2026, 3, 8),
+            confidence="confirmed",
+            visibility="publishable",
+            notes="Synthetic demonstration period",
+        )
+        save_review(
+            connection,
+            period_id=period_id,
+            decision="measure_more",
+            observed_summary="Synthetic descriptive comparison only.",
+            confounders="All values are generated demonstration data.",
+        )
+    finally:
+        connection.close()
+
+
 def _signal(metric: str, value: float, unit: str, date: datetime) -> SignalRecord:
     return SignalRecord(
         metric_key=metric,
@@ -76,4 +122,3 @@ def _signal(metric: str, value: float, unit: str, date: datetime) -> SignalRecor
         source_version="demo",
         device="Public demo",
     )
-

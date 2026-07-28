@@ -9,7 +9,7 @@ from . import __version__
 from .apple_health import iter_export
 from .database import connect, ingest_records
 from .report import generate_report
-from .sample import build_sample_database
+from .sample import build_sample_database, ensure_sample_intervention
 
 DEFAULT_DB = Path("data/processed/protocol-lens.duckdb")
 
@@ -84,6 +84,7 @@ def main() -> None:
         print(f"Report ready: {args.out}")
     elif args.command == "sample":
         build_sample_database(args.db)
+        ensure_sample_intervention(args.db)
         connection = connect(args.db)
         try:
             generate_report(connection, args.out)
