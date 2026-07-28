@@ -46,6 +46,8 @@ from protocol_lens.spreadsheet import (
     read_spreadsheet,
     spreadsheet_records,
 )
+from protocol_lens.stories import REVIEW_DECISIONS, review_queue, save_review
+from protocol_lens.supplement_catalog import supplement_catalog, supplement_profile
 from protocol_lens.workouts import public_workout_snapshot
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -317,16 +319,17 @@ def _dashboard(
     else:
         st.caption("Choose at least one metric.")
 
-    personal_lab_tab, relationship_tab, workouts_tab, sources_tab = st.tabs(
-        ["Personal Lab", "Relationships", "Workouts", "Sources"]
+    supplements_tab, workouts_tab, relationship_tab, sources_tab = st.tabs(
+        ["Supplements", "Workouts", "Relationships", "Sources"]
     )
-    with personal_lab_tab:
+    with supplements_tab:
         _compound_view(personal_connection)
-    with relationship_tab:
-        _relationship_view(visible_frame)
 
     with workouts_tab:
         _workout_view(connection, visible_frame, range_start, range_end)
+
+    with relationship_tab:
+        _relationship_view(visible_frame)
 
     with sources_tab:
         _source_view(connection, demo)
@@ -704,28 +707,45 @@ def _source_view(connection: duckdb.DuckDBPyConnection, demo: bool) -> None:
 
 def _compound_view(connection: duckdb.DuckDBPyConnection) -> None:
     st.markdown(
-        '<div class="personal-lab-banner"><small>PERSONAL LAB</small>'
-        "<strong>Map a routine against your signals.</strong>"
-        "<span>Violet marks entries you add yourself; Apple metrics retain their "
-        "original colors.</span></div>",
+        '<div class="personal-lab-banner"><small>SUPPLEMENT LENS</small>'
+        "<strong>Research → hypothesis → personal result.</strong>"
+        "<span>Choose any profile to see what was expected, which Apple signals fit, "
+        "what the evidence can support, and whether a result is ready.</span></div>",
         unsafe_allow_html=True,
     )
     _intervention_explorer(connection)
 
-    st.markdown("#### Build your Personal Lab")
-    profile_tab, period_tab = st.tabs(["Describe a supplement", "Record a usage period"])
-    with profile_tab:
-        _profile_form(connection)
-    with period_tab:
-        _period_form(connection)
+    st.markdown(
+        '<div class="experiment-loop">'
+        "<div><small>1 · QUESTION</small><strong>What should change?</strong></div>"
+        "<i>→</i><div><small>2 · PERIOD</small><strong>When was it used?</strong></div>"
+        "<i>→</i><div><small>3 · SIGNALS</small><strong>What moved?</strong></div>"
+        "<i>→</i><div><small>4 · REVIEW</small><strong>What else changed?</strong></div>"
+        "<i>→</i><div><small>5 · DECIDE</small><strong>Continue, change, or stop</strong></div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("Review or add personal history"):
+        profile_tab, period_tab, review_tab = st.tabs(
+            ["Describe", "Record a period", "Review result"]
+        )
+        with profile_tab:
+            _profile_form(connection)
+        with period_tab:
+            _period_form(connection)
+        with review_tab:
+            _review_form(connection)
 
 
 def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
     profiles = list_intervention_profiles(connection)
     periods = list_compound_periods(connection)
+    catalog_profiles = supplement_catalog()
     profile_names = profiles["display_name"].tolist() if not profiles.empty else []
     period_names = periods["display_name"].tolist() if not periods.empty else []
-    names = sorted(set(profile_names + period_names), key=str.casefold)
+    catalog_names = [profile["display_name"] for profile in catalog_profiles]
+    names = sorted(set(catalog_names + profile_names + period_names), key=str.casefold)
     if not names:
         st.markdown(
             '<div class="personal-empty"><strong>Your supplement pages will live here.</strong>'
@@ -738,9 +758,13 @@ def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
     selected_name = st.selectbox(
         "Choose a supplement or intervention",
         names,
+        index=names.index("L-theanine") if "L-theanine" in names else 0,
         key="personal_lab_selection",
     )
-    selected_key = canonical_metric(selected_name)
+    knowledge = supplement_profile(selected_name)
+    selected_key = (
+        str(knowledge["key"]) if knowledge is not None else canonical_metric(selected_name)
+    )
     profile_rows = (
         profiles[profiles["intervention_key"] == selected_key]
         if not profiles.empty
@@ -753,6 +777,18 @@ def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
     )
     profile = profile_rows.iloc[0] if not profile_rows.empty else None
     color = str(profile["color"]) if profile is not None else "#BF5AF2"
+    publishable_periods = (
+        int((selected_periods["visibility"] == "publishable").sum())
+        if not selected_periods.empty
+        else 0
+    )
+
+    if knowledge is not None:
+        _knowledge_context(
+            knowledge,
+            period_count=len(selected_periods),
+            publishable_periods=publishable_periods,
+        )
 
     analysis = analyze_compound_periods(connection)
     selected_analysis = (
@@ -761,12 +797,20 @@ def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
         else pd.DataFrame()
     )
     if selected_periods.empty:
-        _profile_context(profile, selected_name, color)
-        st.caption("Add a usage period to connect this profile with Apple metrics.")
+        if profile is not None:
+            _profile_context(profile, selected_name, color)
+        st.markdown(
+            '<div class="result-pending"><small>PERSONAL RESULT</small>'
+            "<strong>Awaiting a confirmed usage period</strong>"
+            "<span>No Apple-linked before/during/after result has been generated or "
+            "published for this profile.</span></div>",
+            unsafe_allow_html=True,
+        )
         return
 
     if selected_analysis.empty:
-        _profile_context(profile, selected_name, color)
+        if profile is not None:
+            _profile_context(profile, selected_name, color)
         st.info("Apple data does not yet overlap these periods.")
         return
 
@@ -883,6 +927,97 @@ def _intervention_explorer(connection: duckdb.DuckDBPyConnection) -> None:
         "Observed changes describe these windows only. They do not show that the intervention "
         "caused the metric to change."
     )
+
+
+def _knowledge_context(
+    profile: dict,
+    *,
+    period_count: int,
+    publishable_periods: int,
+) -> None:
+    history_labels = {
+        "confirmed_profile": (
+            "HISTORY PRESENT",
+            (
+                "Use is present in the reconstructed history; exact comparison periods may "
+                "still need review."
+            ),
+        ),
+        "period_confirmation_needed": (
+            "PERIOD TO CONFIRM",
+            (
+                "The profile is defensible, but a reliable start and end window is still "
+                "needed."
+            ),
+        ),
+        "researched_only": (
+            "RESEARCH ONLY",
+            "No personal-use result is claimed until usage is explicitly confirmed.",
+        ),
+    }
+    status_label, status_detail = history_labels[profile["history_status"]]
+    if publishable_periods:
+        result_label = f"{publishable_periods} PERIOD{'S' if publishable_periods != 1 else ''} MARKED"
+        result_detail = "A reviewed aggregate can be exported after the experiment review."
+    elif period_count:
+        result_label = "LOCAL PERIODS ONLY"
+        result_detail = "Apple comparisons stay on this Mac until explicitly approved."
+    else:
+        result_label = "NO APPLE RESULT YET"
+        result_detail = "Evidence and expected role are visible; personal metrics are not inferred."
+
+    st.markdown(
+        '<div class="knowledge-grid">'
+        '<section class="knowledge-card role"><small>EXPECTED ROLE</small>'
+        f"<h3>{html.escape(str(profile['display_name']))}</h3>"
+        f"<p>{html.escape(str(profile['expected_role']))}</p></section>"
+        '<section class="knowledge-card caveat"><small>EVIDENCE BOUNDARY</small>'
+        f"<p>{html.escape(str(profile['evidence_caveat']))}</p></section>"
+        '<section class="knowledge-card status"><small>'
+        f"{html.escape(status_label)}</small><p>{html.escape(status_detail)}</p>"
+        f"<b>{html.escape(result_label)}</b><span>{html.escape(result_detail)}</span></section>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    metric_items = []
+    for metric in profile["metric_map"]:
+        metric_name = _catalog_metric_label(str(metric["key"]))
+        source_name = "Apple" if metric["source"] == "apple_health" else "Manual"
+        metric_items.append(
+            '<div class="metric-fit">'
+            f'<i class="{html.escape(str(metric["fit"]))}"></i>'
+            f"<strong>{html.escape(metric_name)}</strong>"
+            f"<span>{html.escape(str(metric['fit']).title())} fit · "
+            f"{html.escape(source_name)}</span>"
+            f"<p>{html.escape(str(metric['interpretation']))}</p></div>"
+        )
+    st.markdown("#### What can actually be measured")
+    st.markdown(
+        f'<div class="metric-fit-grid">{"".join(metric_items)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    reference_items = []
+    for reference in profile["go_to_reads"]:
+        reference_items.append(
+            '<a class="source-link" href="'
+            f'{html.escape(str(reference["url"]), quote=True)}" target="_blank">'
+            f"<small>{html.escape(str(reference['publisher']))}</small>"
+            f"<strong>{html.escape(str(reference['title']))}</strong><span>↗</span></a>"
+        )
+    st.markdown("#### Go-to reads")
+    st.markdown(
+        f'<div class="source-grid">{"".join(reference_items)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _catalog_metric_label(metric: str) -> str:
+    known = metric_label(metric)
+    if known != metric.replace("_", " ").title():
+        return known
+    return metric.replace("_", " ").capitalize()
 
 
 def _profile_context(profile: pd.Series | None, selected_name: str, color: str) -> None:
@@ -1019,10 +1154,22 @@ def _profile_form(connection: duckdb.DuckDBPyConnection) -> None:
             "Why was it tracked?",
             placeholder="The personal reason for trying or monitoring it.",
         )
-        profile_confidence = st.selectbox(
-            "Description confidence",
-            ["confirmed", "approximate", "unverified"],
-        )
+        confidence_column, visibility_column = st.columns(2)
+        with confidence_column:
+            profile_confidence = st.selectbox(
+                "Description confidence",
+                ["confirmed", "approximate", "unverified"],
+            )
+        with visibility_column:
+            profile_visibility = st.selectbox(
+                "Profile visibility",
+                ["personal_only", "publishable"],
+                format_func=lambda value: (
+                    "Personal only"
+                    if value == "personal_only"
+                    else "Publishable research profile"
+                ),
+            )
         profile_submitted = st.form_submit_button("Save profile", type="primary")
         if profile_submitted:
             try:
@@ -1035,6 +1182,7 @@ def _profile_form(connection: duckdb.DuckDBPyConnection) -> None:
                     personal_goal=personal_goal,
                     color=profile_color,
                     confidence=profile_confidence,
+                    visibility=profile_visibility,
                 )
                 st.success("Profile saved locally.")
                 st.rerun()
@@ -1251,6 +1399,91 @@ def _period_form(connection: duckdb.DuckDBPyConnection) -> None:
         st.info(
             "Mark a period as publishable to create a summary export."
         )
+
+
+def _review_form(connection: duckdb.DuckDBPyConnection) -> None:
+    periods = list_compound_periods(connection)
+    if periods.empty:
+        st.info("Record a usage period before reviewing a result.")
+        return
+
+    st.markdown("#### Close the experiment loop")
+    st.caption(
+        "Confirm the dates, record the decision, note major confounders, and separately "
+        "approve whether the derived summary may leave this Mac."
+    )
+    period_id = st.selectbox(
+        "Usage period to review",
+        periods["period_id"].tolist(),
+        format_func=lambda value: (
+            f"{periods.loc[periods['period_id'] == value, 'display_name'].iloc[0]} · "
+            f"{_period_label(periods, value)}"
+        ),
+        key="review_period",
+    )
+    selected = periods.loc[periods["period_id"] == period_id].iloc[0]
+    decisions = ["measure_more", "continue", "change", "stop", "inconclusive"]
+    assert set(decisions) == REVIEW_DECISIONS
+    with st.form("intervention_review_form"):
+        decision = st.selectbox(
+            "Decision",
+            decisions,
+            format_func=lambda value: value.replace("_", " ").title(),
+        )
+        observed_summary = st.text_area(
+            "What did the observed window show?",
+            placeholder="A short descriptive conclusion—without claiming causation.",
+        )
+        confounders = st.text_area(
+            "What else changed?",
+            placeholder="Sleep, illness, travel, training volume, caffeine, incomplete data…",
+        )
+        confidence = st.selectbox(
+            "Date confidence",
+            ["confirmed", "approximate", "unverified"],
+            index=["confirmed", "approximate", "unverified"].index(
+                str(selected["confidence"])
+            ),
+        )
+        approve_public = st.checkbox(
+            "Approve the derived summary for the public results snapshot",
+            value=str(selected["visibility"]) == "publishable",
+        )
+        submitted = st.form_submit_button("Save review", type="primary")
+        if submitted:
+            if approve_public and confidence != "confirmed":
+                st.error("Confirm the usage dates before approving a public result.")
+            else:
+                try:
+                    save_review(
+                        connection,
+                        period_id=period_id,
+                        decision=decision,
+                        observed_summary=observed_summary,
+                        confounders=confounders,
+                    )
+                    connection.execute(
+                        """
+                        UPDATE compound_periods
+                        SET confidence = ?, visibility = ?
+                        WHERE period_id = ?
+                        """,
+                        [
+                            confidence,
+                            "publishable" if approve_public else "personal_only",
+                            period_id,
+                        ],
+                    )
+                    st.success("Review saved locally.")
+                    st.rerun()
+                except (ValueError, duckdb.Error) as error:
+                    st.error(str(error))
+
+    queue = review_queue(connection)
+    if queue.empty:
+        st.success("Every recorded period has been reviewed and approved.")
+    else:
+        st.caption(f"{len(queue)} period(s) still need confirmation, review, or approval.")
 
 
 def _intervention_metric_figure(
@@ -1525,6 +1758,66 @@ def _style() -> None:
           border:1px dashed rgba(191,90,242,.35); background:rgba(191,90,242,.04); }
         .personal-empty strong { display:block; color:#f5f5f7; font-size:1.05rem; }
         .personal-empty span { display:block; color:#8e8e93; margin-top:.35rem; }
+        .knowledge-grid { display:grid; grid-template-columns:1.2fr 1fr .9fr; gap:.8rem;
+          margin:1rem 0 1.35rem; }
+        .knowledge-card { min-height:205px; padding:1.3rem 1.4rem; border-radius:24px;
+          border:1px solid #2c2c2e; background:linear-gradient(145deg,#171719,#0c0c0e);
+          position:relative; overflow:hidden; }
+        .knowledge-card small { color:#8e8e93; font-size:.64rem; font-weight:750;
+          letter-spacing:.15em; }
+        .knowledge-card h3 { color:#f5f5f7; font-size:2rem; margin:.8rem 0 .65rem !important; }
+        .knowledge-card p { color:#a1a1a6; line-height:1.52; margin:.7rem 0 0; }
+        .knowledge-card.role { border-color:rgba(191,90,242,.38);
+          background:linear-gradient(145deg,rgba(191,90,242,.16),#0c0c0e 68%); }
+        .knowledge-card.caveat { border-color:rgba(255,159,10,.25); }
+        .knowledge-card.caveat small { color:#ff9f0a; }
+        .knowledge-card.status { border-color:rgba(48,209,88,.24); }
+        .knowledge-card.status small { color:#30d158; }
+        .knowledge-card.status b { display:block; color:#f5f5f7; font-size:.78rem;
+          letter-spacing:.06em; margin-top:1.4rem; }
+        .knowledge-card.status span { display:block; color:#77777d; font-size:.72rem;
+          line-height:1.4; margin-top:.3rem; }
+        .metric-fit-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+          gap:.65rem; margin:.2rem 0 1.5rem; }
+        .metric-fit { position:relative; padding:1rem 1.05rem; border-radius:20px;
+          border:1px solid #2c2c2e; background:#101012; }
+        .metric-fit i { display:block; position:absolute; top:1rem; right:1rem;
+          width:8px; height:8px; border-radius:50%; background:#636366; }
+        .metric-fit i.strong { background:#30d158; box-shadow:0 0 12px rgba(48,209,88,.55); }
+        .metric-fit i.moderate { background:#64d2ff; }
+        .metric-fit i.limited { background:#ff9f0a; }
+        .metric-fit i.manual { background:#bf5af2; }
+        .metric-fit strong { display:block; color:#f5f5f7; padding-right:1rem; }
+        .metric-fit span { display:block; color:#77777d; font-size:.68rem; margin-top:.18rem; }
+        .metric-fit p { color:#8e8e93; font-size:.76rem; line-height:1.45; margin:.8rem 0 0; }
+        .source-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+          gap:.65rem; margin:.2rem 0 1.5rem; }
+        .source-link { display:grid; grid-template-columns:1fr auto; gap:.25rem .75rem;
+          padding:1rem 1.1rem; border-radius:20px; border:1px solid #2c2c2e;
+          background:#101012; color:inherit !important; text-decoration:none !important;
+          transition:border-color .2s ease,transform .2s ease; }
+        .source-link:hover { border-color:#636366; transform:translateY(-1px); }
+        .source-link small { grid-column:1; color:#77777d; font-size:.66rem;
+          font-weight:700; letter-spacing:.08em; }
+        .source-link strong { grid-column:1; color:#f5f5f7; font-size:.86rem; }
+        .source-link span { grid-column:2; grid-row:1 / 3; color:#64d2ff; align-self:center; }
+        .result-pending { margin:.5rem 0 1.3rem; padding:1.15rem 1.3rem;
+          border-radius:22px; border:1px dashed rgba(191,90,242,.35);
+          background:rgba(191,90,242,.045); }
+        .result-pending small { display:block; color:#bf5af2; font-size:.64rem;
+          font-weight:750; letter-spacing:.14em; }
+        .result-pending strong { display:block; color:#f5f5f7; font-size:1.08rem;
+          margin:.5rem 0 .25rem; }
+        .result-pending span { color:#8e8e93; font-size:.78rem; }
+        .experiment-loop { display:grid; grid-template-columns:1fr auto 1fr auto 1fr auto 1fr auto 1fr;
+          align-items:center; gap:.55rem; margin:1.7rem 0 1.2rem; }
+        .experiment-loop div { min-height:88px; padding:.85rem .9rem; border-radius:18px;
+          border:1px solid #2c2c2e; background:#101012; }
+        .experiment-loop small { display:block; color:#bf5af2; font-size:.59rem;
+          font-weight:750; letter-spacing:.12em; }
+        .experiment-loop strong { display:block; color:#d1d1d6; font-size:.76rem;
+          line-height:1.35; margin-top:.55rem; }
+        .experiment-loop i { color:#48484a; font-style:normal; }
         .profile-card, .expectation-card { min-height:210px; padding:1.35rem 1.45rem;
           border-radius:24px; border:1px solid #2c2c2e; background:#111113; }
         .profile-card { position:relative; overflow:hidden; }
@@ -1596,6 +1889,9 @@ def _style() -> None:
           .metric-card { min-height:140px; padding:1rem; }
           .metric-card strong { font-size:2.15rem; margin-top:1.4rem; }
           .workout-insight { grid-template-columns:1fr; gap:.35rem; }
+          .knowledge-grid, .metric-fit-grid, .source-grid { grid-template-columns:1fr; }
+          .experiment-loop { grid-template-columns:1fr; }
+          .experiment-loop i { transform:rotate(90deg); text-align:center; }
         }
         </style>
         """,

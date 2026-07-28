@@ -340,13 +340,26 @@ def public_snapshot(
 ) -> dict:
     """Return a deliberately limited snapshot safe for manual public review."""
     analysis = analyze_compound_periods(connection, window_days=window_days)
+    approvals = connection.execute(
+        """
+        SELECT p.period_id, r.decision
+        FROM compound_periods p
+        JOIN intervention_profiles profile
+          ON profile.intervention_key = p.compound_key
+        JOIN intervention_reviews r
+          ON r.period_id = p.period_id
+        WHERE p.visibility = 'publishable'
+          AND p.confidence = 'confirmed'
+          AND profile.visibility = 'publishable'
+        """
+    ).df()
     if analysis.empty:
         public_rows = []
     else:
         public = analysis[
-            (analysis["visibility"] == "publishable")
-            & analysis["category"].isin(INTERVENTION_CATEGORIES)
+            analysis["category"].isin(INTERVENTION_CATEGORIES)
         ].copy()
+        public = public.merge(approvals, on="period_id", how="inner")
         public_rows = []
         for row in public.itertuples(index=False):
             public_rows.append(
@@ -368,6 +381,7 @@ def public_snapshot(
                     "after_days": int(row.after_days),
                     "data_coverage": round(float(row.coverage), 3),
                     "confidence": row.analysis_confidence,
+                    "review_decision": row.decision,
                     "interpretation": "descriptive_within_person_association",
                 }
             )

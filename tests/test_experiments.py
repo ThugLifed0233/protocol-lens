@@ -14,13 +14,20 @@ from protocol_lens.experiments import (
     save_intervention_profile,
 )
 from protocol_lens.sample import build_sample_database
+from protocol_lens.stories import save_review
 
 
 def test_compound_analysis_and_public_summary(tmp_path: Path) -> None:
     database = tmp_path / "sample.duckdb"
     build_sample_database(database, days=90)
     connection = connect(database)
-    add_compound_period(
+    save_intervention_profile(
+        connection,
+        display_name="Example supplement",
+        category="supplement",
+        visibility="publishable",
+    )
+    period_id = add_compound_period(
         connection,
         display_name="Example supplement",
         category="supplement",
@@ -29,6 +36,11 @@ def test_compound_analysis_and_public_summary(tmp_path: Path) -> None:
         dose_note="personal dose",
         purpose="personal purpose",
         visibility="publishable",
+    )
+    save_review(
+        connection,
+        period_id=period_id,
+        decision="measure_more",
     )
 
     analysis = analyze_compound_periods(connection)
@@ -46,6 +58,42 @@ def test_compound_analysis_and_public_summary(tmp_path: Path) -> None:
         assert "dose_note" not in row
         assert "baseline_mean" not in row
         assert "during_mean" not in row
+        assert row["review_decision"] == "measure_more"
+
+
+def test_public_summary_requires_confirmed_reviewed_profile_and_period(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "gated.duckdb"
+    build_sample_database(database, days=90)
+    connection = connect(database)
+    save_intervention_profile(
+        connection,
+        display_name="Example supplement",
+        category="supplement",
+        visibility="publishable",
+    )
+    period_id = add_compound_period(
+        connection,
+        display_name="Example supplement",
+        category="supplement",
+        start_date=date(2026, 1, 20),
+        end_date=date(2026, 2, 2),
+        confidence="approximate",
+        visibility="publishable",
+    )
+
+    assert public_snapshot(connection)["results"] == []
+    save_review(connection, period_id=period_id, decision="measure_more")
+    assert public_snapshot(connection)["results"] == []
+
+    connection.execute(
+        "UPDATE compound_periods SET confidence = 'confirmed' WHERE period_id = ?",
+        [period_id],
+    )
+    assert public_snapshot(connection)["results"]
+    connection.close()
+
 def test_bulk_intervention_history_defaults_to_personal(tmp_path: Path) -> None:
     connection = connect(tmp_path / "history.duckdb")
     frame = pd.DataFrame(
