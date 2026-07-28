@@ -21,9 +21,41 @@ EXPECTED_KEYS = {
     "l_carnitine",
     "probiotics",
     "fibre_psyllium",
+    "multinutrient_support",
+    "electrolyte_rehydration",
+    "stress_support_blend",
+    "digestive_gas_blend",
     "caffeine",
+    "saffron",
+    "bacopa",
+    "citicoline",
+    "phosphatidylserine",
+    "l_tyrosine",
+    "piracetam",
+    "alpha_gpc",
+    "rhodiola",
     "l_citrulline",
     "curcumin",
+}
+
+RESEARCHED_ONLY_KEYS = {
+    "saffron",
+    "bacopa",
+    "citicoline",
+    "phosphatidylserine",
+    "l_tyrosine",
+    "piracetam",
+    "alpha_gpc",
+    "rhodiola",
+    "l_citrulline",
+    "curcumin",
+}
+
+PERIOD_CONFIRMATION_KEYS = {
+    "multinutrient_support",
+    "electrolyte_rehydration",
+    "stress_support_blend",
+    "digestive_gas_blend",
 }
 
 
@@ -57,9 +89,25 @@ def test_catalog_has_complete_public_profiles() -> None:
 
 
 def test_researched_profiles_are_not_presented_as_personal_use() -> None:
-    assert supplement_profile("l_citrulline")["history_status"] == "researched_only"
-    assert supplement_profile("curcumin")["history_status"] == "researched_only"
+    for key in RESEARCHED_ONLY_KEYS:
+        assert supplement_profile(key)["history_status"] == "researched_only"
+
     assert supplement_profile("creatine")["history_status"] == "confirmed_profile"
+
+
+def test_grouped_history_requires_period_confirmation() -> None:
+    for key in PERIOD_CONFIRMATION_KEYS:
+        profile = supplement_profile(key)
+        assert profile["history_status"] == "period_confirmation_needed"
+        assert any(metric["source"] == "apple_health" for metric in profile["metric_map"])
+        assert any(metric["source"] == "manual" for metric in profile["metric_map"])
+
+
+def test_new_profiles_support_conservative_alias_lookup() -> None:
+    assert supplement_profile("ORS")["key"] == "electrolyte_rehydration"
+    assert supplement_profile("Brahmi")["key"] == "bacopa"
+    assert supplement_profile("CDP-choline")["key"] == "citicoline"
+    assert supplement_profile("alpha glycerylphosphorylcholine")["key"] == "alpha_gpc"
 
 
 def test_profile_lookup_supports_names_and_aliases_without_sharing_mutable_state() -> None:

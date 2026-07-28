@@ -24,6 +24,9 @@ _NIH_PERFORMANCE = (
     "https://ods.od.nih.gov/factsheets/"
     "ExerciseAndAthleticPerformance-HealthProfessional/"
 )
+_NIH_CHOLINE = "https://ods.od.nih.gov/factsheets/Choline-HealthProfessional/"
+_NIH_MAGNESIUM = "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+_NIH_MVMS = "https://ods.od.nih.gov/factsheets/MVMS-HealthProfessional/"
 
 
 def _metric(
@@ -42,6 +45,32 @@ def _metric(
 
 def _read(title: str, publisher: str, url: str) -> dict[str, str]:
     return {"title": title, "publisher": publisher, "url": url}
+
+
+def _cognitive_research_metrics(
+    primary_key: str,
+    primary_interpretation: str,
+) -> list[dict[str, str]]:
+    return [
+        _metric(
+            "sleep_hours",
+            "limited",
+            "apple_health",
+            "Provides essential cognitive-performance context, not a compound outcome.",
+        ),
+        _metric(
+            "resting_heart_rate",
+            "limited",
+            "apple_health",
+            "A general tolerability and context signal rather than evidence of cognitive benefit.",
+        ),
+        _metric(
+            primary_key,
+            "manual",
+            "manual",
+            primary_interpretation,
+        ),
+    ]
 
 
 SUPPLEMENT_CATALOG: tuple[dict[str, Any], ...] = (
@@ -589,6 +618,225 @@ SUPPLEMENT_CATALOG: tuple[dict[str, Any], ...] = (
         ],
     },
     {
+        "key": "multinutrient_support",
+        "display_name": "Multinutrient and B-vitamin support",
+        "aliases": [
+            "calcium and vitamin D",
+            "vitamin B12",
+            "B12",
+            "B-complex",
+            "zinc",
+            "Calverich XT",
+            "Bicozinc",
+        ],
+        "category": "nutrition",
+        "history_status": "period_confirmation_needed",
+        "expected_role": (
+            "Document several nutrient-support products used to provide calcium, vitamin D, "
+            "B vitamins, or zinc when those nutrients were of interest."
+        ),
+        "evidence_caveat": (
+            "This profile groups distinct products rather than one continuous intervention. "
+            "Labels, overlapping ingredients, nutritional need, and usage periods must be "
+            "confirmed before any outcome comparison."
+        ),
+        "metric_map": [
+            _metric(
+                "sleep_hours",
+                "limited",
+                "apple_health",
+                "Provides general recovery context but is not a marker of nutrient status.",
+            ),
+            _metric(
+                "resting_heart_rate",
+                "limited",
+                "apple_health",
+                "Can describe the surrounding period but cannot establish a nutrient effect.",
+            ),
+            _metric(
+                "nutrient_intake",
+                "manual",
+                "manual",
+                "Diet and every overlapping product are needed to estimate total nutrient intake.",
+            ),
+            _metric(
+                "laboratory_status",
+                "manual",
+                "manual",
+                "Relevant laboratory measurements are more informative than passive wearable data.",
+            ),
+        ],
+        "go_to_reads": [
+            _read(
+                "Multivitamin/mineral Supplements: Fact Sheet for Health Professionals",
+                "NIH Office of Dietary Supplements",
+                _NIH_MVMS,
+            ),
+            _read(
+                "Vitamin B12: Fact Sheet for Health Professionals",
+                "NIH Office of Dietary Supplements",
+                "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/",
+            ),
+        ],
+    },
+    {
+        "key": "electrolyte_rehydration",
+        "display_name": "Electrolytes and oral rehydration",
+        "aliases": ["ORS", "Electral", "Fast&Up", "electrolyte tablets"],
+        "category": "hydration",
+        "history_status": "period_confirmation_needed",
+        "expected_role": (
+            "Support short-term rehydration by replacing fluid and electrolytes during "
+            "relevant illness, heat, or exercise contexts."
+        ),
+        "evidence_caveat": (
+            "Oral rehydration solution and sports electrolyte products are not equivalent. "
+            "The exact product, reason for use, and surrounding hydration or illness period "
+            "must be confirmed before interpreting Apple data."
+        ),
+        "metric_map": [
+            _metric(
+                "resting_heart_rate",
+                "moderate",
+                "apple_health",
+                "Can provide rehydration and illness context but is affected by many other factors.",
+            ),
+            _metric(
+                "workout_heart_rate",
+                "limited",
+                "apple_health",
+                "Useful only when heat, workout type, intensity, and duration are comparable.",
+            ),
+            _metric(
+                "body_mass",
+                "limited",
+                "apple_health",
+                "Short-term change may reflect fluid shifts, but sparse measurements limit use.",
+            ),
+            _metric(
+                "hydration_symptoms",
+                "manual",
+                "manual",
+                "Thirst, dizziness, gastrointestinal loss, and fluid intake require manual context.",
+            ),
+        ],
+        "go_to_reads": [
+            _read(
+                "Oral Rehydration Salts",
+                "World Health Organization and UNICEF",
+                "https://www.who.int/publications/i/item/WHO-FCH-CAH-06.1",
+            ),
+            _read(
+                "Dietary Supplements for Exercise and Athletic Performance",
+                "NIH Office of Dietary Supplements",
+                _NIH_PERFORMANCE,
+            ),
+        ],
+    },
+    {
+        "key": "stress_support_blend",
+        "display_name": "Low-dose stress-support blend",
+        "aliases": ["Happy Cultures Stress Who", "Stress Who"],
+        "category": "multi_ingredient",
+        "history_status": "period_confirmation_needed",
+        "expected_role": (
+            "Explore perceived relaxation, sleep, and digestive context from a low-dose "
+            "multi-ingredient stress-support product."
+        ),
+        "evidence_caveat": (
+            "A multi-ingredient blend cannot show which ingredient contributed to a result. "
+            "The product label, usage period, and subjective outcomes still need confirmation, "
+            "and ingredient-level evidence does not establish a product-level effect."
+        ),
+        "metric_map": [
+            _metric(
+                "sleep_hours",
+                "moderate",
+                "apple_health",
+                "Can describe sleep duration during a confirmed product period.",
+            ),
+            _metric(
+                "resting_heart_rate",
+                "limited",
+                "apple_health",
+                "Exploratory autonomic context only, not a validated relaxation outcome.",
+            ),
+            _metric(
+                "hrv_sdnn",
+                "limited",
+                "apple_health",
+                "Highly variable and not interpretable without comparable sleep and activity.",
+            ),
+            _metric(
+                "stress",
+                "manual",
+                "manual",
+                "The intended personal outcome needs a consistent subjective rating.",
+            ),
+        ],
+        "go_to_reads": [
+            _read(
+                "Ashwagandha: Usefulness and Safety",
+                "National Center for Complementary and Integrative Health",
+                "https://www.nccih.nih.gov/health/ashwagandha",
+            ),
+            _read(
+                "Magnesium: Fact Sheet for Health Professionals",
+                "NIH Office of Dietary Supplements",
+                _NIH_MAGNESIUM,
+            ),
+        ],
+    },
+    {
+        "key": "digestive_gas_blend",
+        "display_name": "Occasional digestive and gas blend",
+        "aliases": ["Happy Cultures Q-Gazz", "Q-Gazz"],
+        "category": "gut_health",
+        "history_status": "period_confirmation_needed",
+        "expected_role": (
+            "Explore short-term relief of gas, pressure, fullness, or bloating from an "
+            "occasional multi-ingredient digestive product."
+        ),
+        "evidence_caveat": (
+            "The exact formulation and usage events need confirmation. Evidence for one "
+            "component cannot be generalized to the full blend, and Apple Health does not "
+            "measure the primary digestive outcomes."
+        ),
+        "metric_map": [
+            _metric(
+                "resting_heart_rate",
+                "limited",
+                "apple_health",
+                "May add illness or discomfort context but is not a digestive efficacy measure.",
+            ),
+            _metric(
+                "sleep_hours",
+                "limited",
+                "apple_health",
+                "Provides contextual recovery information only.",
+            ),
+            _metric(
+                "gut_comfort",
+                "manual",
+                "manual",
+                "Gas, pressure, and bloating require a consistent symptom rating.",
+            ),
+            _metric(
+                "use_event",
+                "manual",
+                "manual",
+                "Occasional use needs an event timestamp to support a short-window comparison.",
+            ),
+        ],
+        "go_to_reads": [
+            _read(
+                "Simethicone: Drug Information",
+                "MedlinePlus, U.S. National Library of Medicine",
+                "https://medlineplus.gov/druginfo/meds/a682683.html",
+            )
+        ],
+    },
+    {
         "key": "caffeine",
         "display_name": "Caffeine",
         "aliases": ["coffee"],
@@ -646,6 +894,232 @@ SUPPLEMENT_CATALOG: tuple[dict[str, Any], ...] = (
                 "NIH Office of Dietary Supplements",
                 _NIH_PERFORMANCE,
             ),
+        ],
+    },
+    {
+        "key": "saffron",
+        "display_name": "Standardized saffron extract",
+        "aliases": ["saffron extract"],
+        "category": "research_candidate",
+        "history_status": "researched_only",
+        "expected_role": (
+            "Research mood, perceived stress, sleep, and attention hypotheses for a "
+            "standardized saffron extract."
+        ),
+        "evidence_caveat": (
+            "Small trials use specific extracts and populations, with mixed endpoints. "
+            "Those findings do not establish a general cognitive or mood effect and do not "
+            "represent personal use."
+        ),
+        "metric_map": _cognitive_research_metrics(
+            "mood_and_attention",
+            "Mood and attention require validated questionnaires or repeatable tasks.",
+        ),
+        "go_to_reads": [
+            _read(
+                "Effects of Saffron Extract Supplementation on Mood and Well-Being",
+                "PubMed, U.S. National Library of Medicine",
+                "https://pubmed.ncbi.nlm.nih.gov/33598475/",
+            )
+        ],
+    },
+    {
+        "key": "bacopa",
+        "display_name": "Bacopa monnieri",
+        "aliases": ["Bacopa", "Brahmi"],
+        "category": "research_candidate",
+        "history_status": "researched_only",
+        "expected_role": (
+            "Research longer-horizon memory, attention, perceived stress, and fatigue hypotheses."
+        ),
+        "evidence_caveat": (
+            "Extracts, populations, and trial outcomes vary. A recent controlled trial did "
+            "not improve its primary cognitive outcomes, and this profile does not represent "
+            "personal use."
+        ),
+        "metric_map": _cognitive_research_metrics(
+            "memory_and_attention",
+            "Memory and attention need validated, repeated tasks over a suitable study period.",
+        ),
+        "go_to_reads": [
+            _read(
+                "Effects of a Bacopa monnieri Extract on Cognition, Stress, and Fatigue",
+                "PubMed, U.S. National Library of Medicine",
+                "https://pubmed.ncbi.nlm.nih.gov/41091332/",
+            )
+        ],
+    },
+    {
+        "key": "citicoline",
+        "display_name": "Citicoline",
+        "aliases": ["CDP-choline"],
+        "category": "research_candidate",
+        "history_status": "researched_only",
+        "expected_role": (
+            "Research choline-related attention and memory hypotheses using a defined product."
+        ),
+        "evidence_caveat": (
+            "Human trials are limited and often study selected older or impaired populations. "
+            "General choline biology does not establish a citicoline nootropic effect, and "
+            "this profile does not represent personal use."
+        ),
+        "metric_map": _cognitive_research_metrics(
+            "memory_and_attention",
+            "Comparable memory and attention tasks are needed; Apple Health cannot measure them.",
+        ),
+        "go_to_reads": [
+            _read(
+                "Choline: Fact Sheet for Health Professionals",
+                "NIH Office of Dietary Supplements",
+                _NIH_CHOLINE,
+            ),
+            _read(
+                "Citicoline and Memory Function in Healthy Older Adults",
+                "PubMed, U.S. National Library of Medicine",
+                "https://pubmed.ncbi.nlm.nih.gov/33978188/",
+            ),
+        ],
+    },
+    {
+        "key": "phosphatidylserine",
+        "display_name": "Phosphatidylserine",
+        "aliases": ["PS"],
+        "category": "research_candidate",
+        "history_status": "researched_only",
+        "expected_role": (
+            "Research memory, attention, and perceived-stress hypotheses for a defined formulation."
+        ),
+        "evidence_caveat": (
+            "Trials are limited, often involve older adults with memory complaints, and do "
+            "not establish benefit in healthy younger users. This profile does not represent "
+            "personal use."
+        ),
+        "metric_map": _cognitive_research_metrics(
+            "memory_and_attention",
+            "A validated repeated cognitive task is required for the proposed outcome.",
+        ),
+        "go_to_reads": [
+            _read(
+                "Soybean-Derived Phosphatidylserine and Memory Function",
+                "PubMed, U.S. National Library of Medicine",
+                "https://pubmed.ncbi.nlm.nih.gov/21103034/",
+            )
+        ],
+    },
+    {
+        "key": "l_tyrosine",
+        "display_name": "L-tyrosine",
+        "aliases": ["tyrosine"],
+        "category": "research_candidate",
+        "history_status": "researched_only",
+        "expected_role": (
+            "Research whether tyrosine supports attention during acute, demanding stressors "
+            "such as extended wakefulness."
+        ),
+        "evidence_caveat": (
+            "Any signal appears context-specific, and older sleep-deprivation studies do not "
+            "justify routine cognitive-enhancement claims. This profile does not represent "
+            "personal use."
+        ),
+        "metric_map": _cognitive_research_metrics(
+            "attention_under_stress",
+            "A repeatable attention task and a predefined stress context are required.",
+        ),
+        "go_to_reads": [
+            _read(
+                "The Effects of Tyrosine on Cognitive Performance During Extended Wakefulness",
+                "PubMed, U.S. National Library of Medicine",
+                "https://pubmed.ncbi.nlm.nih.gov/7794222/",
+            )
+        ],
+    },
+    {
+        "key": "piracetam",
+        "display_name": "Piracetam",
+        "aliases": [],
+        "category": "research_candidate",
+        "history_status": "researched_only",
+        "expected_role": (
+            "Document a researched memory and cognition hypothesis without presenting it as "
+            "a supplement protocol or personal exposure."
+        ),
+        "evidence_caveat": (
+            "Evidence for memory benefit is inconclusive, regulatory status differs by country, "
+            "and the U.S. FDA has challenged its marketing as a dietary supplement. This profile "
+            "does not represent personal use."
+        ),
+        "metric_map": _cognitive_research_metrics(
+            "memory",
+            "A validated repeated memory task would be required for any structured evaluation.",
+        ),
+        "go_to_reads": [
+            _read(
+                "Cognitive Effects of Piracetam in Adults With Memory Impairment",
+                "PubMed, U.S. National Library of Medicine",
+                "https://pubmed.ncbi.nlm.nih.gov/38878641/",
+            ),
+            _read(
+                "Peak Nootropics Warning Letter",
+                "U.S. Food and Drug Administration",
+                "https://www.fda.gov/inspections-compliance-enforcement-and-criminal-investigations/"
+                "warning-letters/peak-nootropics-llc-aka-advanced-nootropics-557887-02052019",
+            ),
+        ],
+    },
+    {
+        "key": "alpha_gpc",
+        "display_name": "Alpha-GPC",
+        "aliases": ["alpha glycerylphosphorylcholine", "choline alfoscerate"],
+        "category": "research_candidate",
+        "history_status": "researched_only",
+        "expected_role": (
+            "Research choline-related cognition or motivation hypotheses using a defined product."
+        ),
+        "evidence_caveat": (
+            "General choline physiology is not evidence of a nootropic effect. Relevant human "
+            "studies are small or use selected clinical populations, and this profile does not "
+            "represent personal use."
+        ),
+        "metric_map": _cognitive_research_metrics(
+            "cognition_and_motivation",
+            "Validated cognitive tasks and a consistent motivation rating are required.",
+        ),
+        "go_to_reads": [
+            _read(
+                "Choline: Fact Sheet for Health Professionals",
+                "NIH Office of Dietary Supplements",
+                _NIH_CHOLINE,
+            ),
+            _read(
+                "Alpha-Glycerylphosphorylcholine and Motivation in Healthy Volunteers",
+                "PubMed, U.S. National Library of Medicine",
+                "https://pubmed.ncbi.nlm.nih.gov/34207484/",
+            ),
+        ],
+    },
+    {
+        "key": "rhodiola",
+        "display_name": "Rhodiola rosea",
+        "aliases": ["Rhodiola", "golden root"],
+        "category": "research_candidate",
+        "history_status": "researched_only",
+        "expected_role": (
+            "Research fatigue, stress, mood, and performance hypotheses for a standardized extract."
+        ),
+        "evidence_caveat": (
+            "NCCIH concludes that reliable evidence is insufficient for any health-related "
+            "purpose, and products vary. This profile does not represent personal use."
+        ),
+        "metric_map": _cognitive_research_metrics(
+            "fatigue_and_stress",
+            "Fatigue and stress require predefined, repeatable subjective measures.",
+        ),
+        "go_to_reads": [
+            _read(
+                "Rhodiola: Usefulness and Safety",
+                "National Center for Complementary and Integrative Health",
+                "https://www.nccih.nih.gov/health/rhodiola",
+            )
         ],
     },
     {
