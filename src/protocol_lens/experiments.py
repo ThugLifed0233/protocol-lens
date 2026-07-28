@@ -37,6 +37,7 @@ PROFILE_COLUMNS = {
     "personal_goal",
     "color",
     "confidence",
+    "visibility",
 }
 
 
@@ -50,6 +51,7 @@ def save_intervention_profile(
     personal_goal: str = "",
     color: str = "#BF5AF2",
     confidence: str = "confirmed",
+    visibility: str = "personal_only",
 ) -> str:
     """Create or update the descriptive profile behind one intervention."""
     if not display_name.strip():
@@ -58,6 +60,8 @@ def save_intervention_profile(
         raise ValueError("Unsupported intervention category")
     if confidence not in {"confirmed", "approximate", "unverified"}:
         raise ValueError("Unsupported confidence value")
+    if visibility not in {"personal_only", "publishable"}:
+        raise ValueError("Unsupported visibility value")
     if len(color) != 7 or not color.startswith("#"):
         raise ValueError("Color must be a six-digit hex value")
     try:
@@ -70,8 +74,8 @@ def save_intervention_profile(
         """
         INSERT INTO intervention_profiles (
             intervention_key, display_name, category, description, expected_outcomes,
-            personal_goal, color, source_confidence
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            personal_goal, color, source_confidence, visibility
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (intervention_key) DO UPDATE SET
             display_name = excluded.display_name,
             category = excluded.category,
@@ -80,6 +84,7 @@ def save_intervention_profile(
             personal_goal = excluded.personal_goal,
             color = excluded.color,
             source_confidence = excluded.source_confidence,
+            visibility = excluded.visibility,
             updated_at = now()
         """,
         [
@@ -91,6 +96,7 @@ def save_intervention_profile(
             personal_goal.strip(),
             color.upper(),
             confidence,
+            visibility,
         ],
     )
     return intervention_key
@@ -100,7 +106,7 @@ def list_intervention_profiles(connection: duckdb.DuckDBPyConnection) -> pd.Data
     return connection.execute(
         """
         SELECT intervention_key, display_name, category, description, expected_outcomes,
-               personal_goal, color, source_confidence, updated_at
+               personal_goal, color, source_confidence, visibility, updated_at
         FROM intervention_profiles
         ORDER BY display_name
         """
@@ -138,6 +144,7 @@ def import_intervention_profiles(
             personal_goal=_text(row.get("personal_goal")),
             color=_text(row.get("color")) or "#BF5AF2",
             confidence=_text(row.get("confidence")) or "approximate",
+            visibility=_text(row.get("visibility")) or "personal_only",
         )
         imported += 1
     if not imported:

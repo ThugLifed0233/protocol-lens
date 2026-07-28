@@ -76,7 +76,34 @@ CREATE TABLE IF NOT EXISTS intervention_profiles (
     personal_goal VARCHAR,
     color VARCHAR NOT NULL,
     source_confidence VARCHAR NOT NULL,
+    visibility VARCHAR NOT NULL DEFAULT 'personal_only',
     updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS intervention_expectations (
+    intervention_key VARCHAR NOT NULL,
+    metric_key VARCHAR NOT NULL,
+    expected_direction VARCHAR NOT NULL,
+    rationale VARCHAR,
+    PRIMARY KEY (intervention_key, metric_key)
+);
+
+CREATE TABLE IF NOT EXISTS intervention_references (
+    reference_id VARCHAR PRIMARY KEY,
+    intervention_key VARCHAR NOT NULL,
+    title VARCHAR NOT NULL,
+    publisher VARCHAR,
+    url VARCHAR NOT NULL,
+    note VARCHAR,
+    sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS intervention_reviews (
+    period_id VARCHAR PRIMARY KEY,
+    decision VARCHAR,
+    observed_summary VARCHAR,
+    confounders VARCHAR,
+    reviewed_at TIMESTAMPTZ DEFAULT now()
 );
 """
 
@@ -85,6 +112,12 @@ def connect(path: Path) -> duckdb.DuckDBPyConnection:
     path.parent.mkdir(parents=True, exist_ok=True)
     connection = duckdb.connect(str(path))
     connection.execute(SCHEMA_SQL)
+    connection.execute(
+        """
+        ALTER TABLE intervention_profiles
+        ADD COLUMN IF NOT EXISTS visibility VARCHAR DEFAULT 'personal_only'
+        """
+    )
     return connection
 
 
