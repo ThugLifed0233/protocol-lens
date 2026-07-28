@@ -31,6 +31,8 @@
 - [x] Support broken usage periods.
 - [x] Supplement profile with description, expected outcomes, goal, and color.
 - [x] Supplement-to-Apple-metric visual explorer.
+- [x] Period selector and adjustable supplement graph windows.
+- [x] Range-aware before/during/after cards.
 - [ ] Dose events and product details.
 - [x] Before / during / after windows.
 - [ ] Compare repeated periods of the same compound.
@@ -44,6 +46,14 @@
 - [ ] Strength trends from verified results.
 - [ ] Apple workout overlay against lifting blocks.
 - [ ] Recovery and training-load relationships.
+
+## Timeline experience
+
+- [x] Recent-year default instead of an all-history default.
+- [x] 30-day, 90-day, six-month, one-year, all-data, and custom ranges.
+- [x] Aligned small multiples for mixed-unit metrics.
+- [x] Separate Apple workout event rail.
+- [x] Cards driven by the visible graph window.
 
 ## Explicitly not now
 

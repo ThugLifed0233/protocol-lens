@@ -119,6 +119,17 @@ The profile keeps “what it is,” “what was expected,” and “why it was t
 observed Apple result. See the [Personal Lab structure](docs/personal-lab.md) and the profile and
 period templates in [`examples/`](examples/).
 
+### Adjustable timeline
+
+The primary timeline opens on the most recent year instead of compressing the complete history
+into one graph. Available ranges are 30 days, 90 days, six months, one year, all data, or custom
+dates.
+
+Each selected metric receives its own aligned panel and stable color. A faint daily line preserves
+the observations while a stronger adaptive trend makes the pattern readable. Workout days appear
+on a separate event rail. The cards below the graph summarize only the visible window and compare
+it with the equal preceding window when coverage is sufficient.
+
 ### 4. Command-line import
 
 ```bash

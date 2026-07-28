@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "protocol-lens"
-version = "0.4.0"
+version = "0.5.0"
 description = "A local, Apple-first personal health timeline and correlation explorer."
 readme = "README.md"
 requires-python = ">=3.11"

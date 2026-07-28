@@ -33,9 +33,14 @@ For a chosen intervention and Apple metric, the page shows:
 
 1. the Apple metric across time;
 2. shaded intervention periods;
-3. equal before, during, and after windows;
-4. relative change and observation counts;
-5. data coverage and descriptive confidence.
+3. a chosen usage period or all recorded periods;
+4. period-focused, 30-day, 90-day, six-month, one-year, all-data, and custom windows;
+5. equal before, during, and after comparisons;
+6. relative change and observation counts;
+7. data coverage and descriptive confidence.
+
+The graph is shown before descriptive profile material. A faint daily signal and stronger adaptive
+trend preserve detail without making multi-year windows unreadable.
 
 The result language is deliberately observational: “higher during” or “lower during.” It does not
 claim that the intervention caused the change.
